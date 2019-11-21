@@ -1,7 +1,7 @@
 from matplotlib import pyplot as plt
 from numpy import arange
 from numpy.random import normal
-from markovSources import House, Factory
+from markovSources import House, Factory, SolarPanel, WindTurbine
 import math
 
 # this array holds all the times throughout the day that our model will iterate
@@ -17,14 +17,21 @@ baseline = 9779
 # we should definetely look at IESO data and find a function that fits it better 
 hydroSchedule = lambda x : 1900*math.sin(x*math.pi/12) + 1900
 
-numHouses = 450
-numFactories = 25
-
 stochasticConsumers = []
+numHouses = 500
+numFactories = 20
 for i in range(0,numHouses):
 	stochasticConsumers.append(House())
 for i in range(0,numFactories):
 	stochasticConsumers.append(Factory())
+
+stochasticProducers = []
+numSolarPanels = 50
+numWindTurbines = 10
+for i in range(0,numSolarPanels):
+	stochasticProducers.append(SolarPanel())
+for i in range(0,numWindTurbines):
+	stochasticProducers.append(WindTurbine())
 
 demand = []
 production = []
@@ -42,8 +49,11 @@ for dummy in range(0,1):
 		totalProduction += baseline
 		totalProduction += hydroSchedule(t)
 
-		# both stochastic consumers and producers determine the amount they consume and 
-		# produce respectively
+		# production from solar panels and wind turbines is added to the grid
+		for producer in stochasticProducers:
+			totalProduction += producer.update(t)
+
+		# users draw electricity from grid
 		for consumer in stochasticConsumers:
 			totalDemand += consumer.update(t)
 

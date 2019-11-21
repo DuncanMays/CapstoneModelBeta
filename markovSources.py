@@ -33,10 +33,21 @@ class MarkovSource:
 
 class House(MarkovSource):
 	# houses have fairly high variance, but low average consumption
-	def __init__(self, meanFunction = lambda x : 5*math.sin(x*math.pi/12) + 20, variance = 4, initialCondition = 20):
+	# their expected consumption follows a sin wave, we should change this later
+	def __init__(self, meanFunction = lambda x : 4*math.sin(x*math.pi/12) + 20, variance = 4, initialCondition = 20):
 		MarkovSource.__init__(self, meanFunction, variance, initialCondition)
 
 class Factory(MarkovSource):
 	# factories have fairly low variance, but high average consumption
 	def __init__(self, meanFunction = lambda x : 100, variance = 0.5, initialCondition = 100):
 		MarkovSource.__init__(self, meanFunction, variance, initialCondition)
+
+class SolarPanel(MarkovSource):
+	# the mean function for solar panels looks like a lump in the middle fo the day, with relatively high variance
+	def __init__(self, meanFunction = lambda x : 10/(1+((x-12)**2)/5), variance = 5, initialCondition = 0):
+			MarkovSource.__init__(self, meanFunction, variance, initialCondition)
+
+class WindTurbine(MarkovSource):
+	# the mean function for wind farms is constant, with very high variance
+	def __init__(self, meanFunction = lambda x : 30, variance = 8, initialCondition = 30):
+			MarkovSource.__init__(self, meanFunction, variance, initialCondition)
