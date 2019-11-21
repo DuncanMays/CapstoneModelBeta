@@ -6,7 +6,7 @@ import math
 # this array holds all the times throughout the day that our model will iterate
 # right now I've set it to 15 minute intervals, we should take care in other 
 # parts of the program to allow intervals of other sizes
-# arange does the same thing as linspace in Matlab
+# numpy.arange does the same thing as linspace in Matlab
 T = arange(0, 24, 0.25)
 
 # baseline power production, this will be the amount of electricity produced by nuclear
@@ -51,6 +51,21 @@ gasPrice = 3
 # I am assuming that it costs the same amount of money to produce electricity
 # by both wind and solar, this is probably a bad assumption
 renewablePrice = 0.1
+
+# returns the retail price of electricity at the given time, in cents per kWh
+# lambda functions don't like if statements, so I had to use an actual function
+# this is Ontario's winter pricing scheme
+def priceOfConsumption(time):
+	if(time < 7):
+		return 6.5
+	elif(time < 11):
+		return 13.4
+	elif(time < 17):
+		return 9.4
+	elif(time < 19):
+		return 13.4
+	else:
+		return 6.5
 
 # arrays that will be used to plot, serve no other purpose than this
 demand = []
@@ -97,7 +112,7 @@ for MAX in range(0,1):
 		prodPrice.append(priceOfProduction)
 
 # plots everything all nice and pretty
-plt.plot(T, demand)
-plt.plot(T, production)
+# plt.plot(T, demand)
+# plt.plot(T, production)
 plt.plot(T,prodPrice)
 plt.show()
