@@ -1,2 +1,1 @@
 # CapstoneModelBeta
-Capstone Project
