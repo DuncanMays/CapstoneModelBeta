@@ -43,7 +43,7 @@ class Factory(MarkovSource):
 		MarkovSource.__init__(self, meanFunction, variance, initialCondition)
 
 class SolarPanel(MarkovSource):
-	# the mean function for solar panels looks like a lump in the middle fo the day, with relatively high variance
+	# the mean function for solar panels looks like a lump in the middle of the day, with relatively high variance
 	def __init__(self, meanFunction = lambda x : 10/(1+((x-12)**2)/5), variance = 5, initialCondition = 0):
 			MarkovSource.__init__(self, meanFunction, variance, initialCondition)
 

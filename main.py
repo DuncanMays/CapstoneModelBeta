@@ -1,6 +1,5 @@
 from matplotlib import pyplot as plt
 from numpy import arange
-from numpy.random import normal
 from markovSources import House, Factory, SolarPanel, WindTurbine
 import math
 
@@ -17,19 +16,25 @@ baseline = 9779
 # we should definetely look at IESO data and find a function that fits it better 
 hydroSchedule = lambda x : 1900*math.sin(x*math.pi/12) + 1900
 
+# this array will hold all the consumers that draw electricity in a stochastic manner
 stochasticConsumers = []
 numHouses = 500
 numFactories = 20
+# creates numHouses instances of the House class
 for i in range(0,numHouses):
 	stochasticConsumers.append(House())
+# creates numFactories instances of the Factory class
 for i in range(0,numFactories):
 	stochasticConsumers.append(Factory())
 
+# This array holds the producers that produce in a stochastic manner
 stochasticProducers = []
 numSolarPanels = 50
 numWindTurbines = 10
+# creates numSolarPanels instances of SolarPanel
 for i in range(0,numSolarPanels):
 	stochasticProducers.append(SolarPanel())
+# creates numWindTurbines instances of WindTurbine
 for i in range(0,numWindTurbines):
 	stochasticProducers.append(WindTurbine())
 
@@ -39,7 +44,7 @@ production = []
 # main program loop
 # each iteration of this loop represents one day in the model
 # while(True):
-for dummy in range(0,1):
+for MAX in range(0,1):
 	# each iteration in this loop represents one time interval
 	for t in T:
 		totalProduction = 0
