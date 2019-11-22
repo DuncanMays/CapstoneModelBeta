@@ -75,7 +75,7 @@ prodPrice = []
 # main program loop
 # each iteration of this loop represents one day in the model
 # while(True):
-for MAX in range(0,1):
+for dummy in range(0,1):
 	# each iteration in this loop represents one time interval
 	for t in T:
 		totalProduction = 0
@@ -91,9 +91,9 @@ for MAX in range(0,1):
 
 		# production from solar panels and wind turbines is added to the grid
 		for producer in stochasticProducers:
-			temp = producer.update(t)
-			totalProduction += temp
-			priceOfProduction += renewablePrice*temp
+			renewableProduction = producer.update(t)
+			totalProduction += renewableProduction
+			priceOfProduction += renewablePrice*renewableProduction
 
 		# users draw electricity from grid
 		for consumer in stochasticConsumers:
@@ -101,9 +101,9 @@ for MAX in range(0,1):
 
 		# production from gas-fired plants is added to the grid
 		if(totalDemand > totalProduction):
-			temp = totalDemand - totalProduction
-			totalProduction += temp
-			priceOfProduction += gasPrice*temp
+			gasProduction = totalDemand - totalProduction
+			totalProduction += gasProduction
+			priceOfProduction += gasPrice*gasProduction
 
 
 		# these lines only serve to make plots below
@@ -112,7 +112,7 @@ for MAX in range(0,1):
 		prodPrice.append(priceOfProduction)
 
 # plots everything all nice and pretty
-# plt.plot(T, demand)
-# plt.plot(T, production)
+plt.plot(T, demand)
+plt.plot(T, production)
 plt.plot(T,prodPrice)
 plt.show()
