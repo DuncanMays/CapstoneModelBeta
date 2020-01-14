@@ -67,7 +67,7 @@ def priceOfConsumption(time):
 	else:
 		return 6.5
 
-# arrays that will be used to plot, serve no other purpose than this
+# arrays that will be used to plot data at the end of the program, serve no other purpose than this
 demand = []
 production = []
 prodPrice = []
@@ -75,9 +75,12 @@ prodPrice = []
 # main program loop
 # each iteration of this loop represents one day in the model
 # while(True):
+# for testing purposes, I've commented out the origional while statement and replaced it with a for loop
+# this is so that the loop will only iterate once, which makes testing possible
 for dummy in range(0,1):
-	# each iteration in this loop represents one time interval
+	# each iteration in this loop represents one time interval (not a full day)
 	for t in T:
+		# resets these variables to zero
 		totalProduction = 0
 		totalDemand = 0
 		priceOfProduction = 0
@@ -104,7 +107,6 @@ for dummy in range(0,1):
 			gasProduction = totalDemand - totalProduction
 			totalProduction += gasProduction
 			priceOfProduction += gasPrice*gasProduction
-
 
 		# these lines only serve to make plots below
 		demand.append(totalDemand)
