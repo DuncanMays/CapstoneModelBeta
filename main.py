@@ -3,6 +3,8 @@ from numpy import arange
 from markovSources import House, Factory, SolarPanel, WindTurbine
 import math
 
+print('william rox')
+
 # this array holds all the times throughout the day that our model will iterate
 # right now I've set it to 15 minute intervals, we should take care in other 
 # parts of the program to allow intervals of other sizes
