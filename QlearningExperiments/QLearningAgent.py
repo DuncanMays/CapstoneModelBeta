@@ -35,7 +35,7 @@ I have also switched the time-direction of updating expected rewards. Normally, 
 class QLearningAgent:
 	
 	'''
-	actions is an array that gives the possible actions the agent can take
+	actions is an list that gives the possible actions the agent can take
 	learningRate controls how fast the agent learns, the higher it is the faster
 	discount controls how much the agent values future rewards, high discount values mean the agent 'plans ahead' more
 	exploration controls how likely the agent is to randomly select policy
@@ -48,10 +48,11 @@ class QLearningAgent:
 		self.discount = discount
 		self.exploration = exploration
 
+		# These 4 variable are needed so that the agent can know which state/action combinations are likely to lead to one
+		# another, and adjust policy accordingly.
 		# these variable will store the state/action combination at the previous time-step
 		self.secondLastState = 'bootstrap'
 		self.secondLastAction = 'bootstrap'
-
 		# stores the state/action combination in the current time-step
 		self.lastState = 'bootstrap'
 		self.lastAction = 'bootstrap'
@@ -61,35 +62,61 @@ class QLearningAgent:
 		#  state/action combination. This call to getAction() removes that problem.
 		self.getAction(['bootstrap'])
 
+	'''
+	Creates a new branch in the Q-tree, will be called when the state has not been discovered yet and so there is no branch
+	 on the Q-tree to record a policy for it.
+	state is a list representing the state we need to create a new branch for. Note that it does not necessarily have to be
+	 the same length as the state vector, as we can have new states where the first few state components are the same as in
+	 states we have already visited.
+	'''
 	def newPolicy(self, state):
 		if (len(state) > 0):
+			# recursively assembles a new branch until there are no remaining elements in state
 			return {state[0]: self.newPolicy(state[1:len(state)])}
 		else:
+			# if we have reached the end of the state list, we can now create a policy dict
 			q = {}
 			for i in self.actions:
+				# randomly initializes policy
 				q[i] = uniform(-1, 1)
 			return q
 
-	# recursively traverses the Q-tree
+	'''
+	Recursively traverses the Q-tree, with exception handling for when the given state has not been discovered yet.
+	state is an list that describes both the current state of the system and the path to where the Q-tree stores the
+	 policy it has developed for that state. This is one of the advantages of using a Q-tree instead of a Q-table, the
+	 state information itself can be used to access policy.
+	q is a Q-tree. Note that the Q-tree stored in the variable self.Q is basically a dict with keys corresponding to
+	 all the possible values of the first state component, and values being smaller Q-trees that contain policy for when
+	 the first state component takes the corresponding value. This is why we can access the tree recursively.
+	'''
 	def getPolicy(self, state, q):
 		if(len(state) > 0):
+			# This block will execute if we have not yet reached the bottom of the Q-tree.
+			# the basic idea is to use the first element of the state list to access a subsidiary Q-tree, and call
+			# getPolicy on it. We must also remove the first element of state.
 			try:
+				# q[state[0]] will throw a KeyError exception if we have not yet discovered the given state, in which
+				# case the except block below will execute.
 				return self.getPolicy(state[1:len(state)], q[state[0]])
 			except(KeyError):
+				# this block will execute if the given state has not been discovered yet.
+				# simply create a new branch on the Q-tree corresponding to the given state, and continue normally.
 				q[state[0]] = self.newPolicy(state[1:len(state)])
 				return self.getPolicy(state[1:len(state)], q[state[0]])
 		else:
+			# If state is an empty list, we have hit the bottom of the tree and q is simply a policy dict.
 			return q
 
 	def getAction(self, state):
 		if (uniform(0, 1) < self.exploration):
 			action = choice(self.actions)
 		else:
-			q = self.getPolicy(state, self.Q)
+			policy = self.getPolicy(state, self.Q)
 
 			action = self.actions[0]
 			for i in self.actions:
-				if (q[i] > q[action]):
+				if (policy[i] > policy[action]):
 					action = i
 
 		self.secondLastState = self.lastState
