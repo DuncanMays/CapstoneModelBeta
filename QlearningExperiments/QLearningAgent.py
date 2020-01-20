@@ -108,38 +108,63 @@ class QLearningAgent:
 			# If state is an empty list, we have hit the bottom of the tree and q is simply a policy dict.
 			return q
 
+	'''
+	This function will either look into the agent's Q-tree to find the action with the highest expected
+	 reward, or it will simply return a random action.
+	state is a list of state coordinates, this function will use it to find the policy it has learned for 
+	 the given state.
+	'''
 	def getAction(self, state):
+		# the agent has a small percent chance, given by self.exploration, of simply taking a random action
 		if (uniform(0, 1) < self.exploration):
+			# randomly selects an action
 			action = choice(self.actions)
 		else:
+			# looks into its Q-tree to find the learned policy for the current state
 			policy = self.getPolicy(state, self.Q)
 
+			# selects the action with the highest expected reward
 			action = self.actions[0]
 			for i in self.actions:
 				if (policy[i] > policy[action]):
 					action = i
 
+		# keeps track of the last 2 actions it has taken, this will be used in giveReward() to allow the 
+		# agent to learn.
 		self.secondLastState = self.lastState
 		self.secondLastAction = self.lastAction
-
 		self.lastState = state
 		self.lastAction = action
 
 		return action
 
+	'''
+	This function updates the policy in the Q-table to reflect rewards it is given as a parameter. It can only
+	 remember the last state it used to pick an action, and so it must be called after getAction(), otherwise
+	 the learning algorithm will not function properly.
+	Reward is a float that gives the reward of the last state/action combination.
+	'''
 	def giveReward(self, reward):
-		policy = self.getPolicy(self.lastState, self.Q)
 
+		# gets the last used policy
+		lastPolicy = self.getPolicy(self.lastState, self.Q)
+
+		# changes the expected reward of the last state/action combination to a weighted average between the previous
+		# expected reward and the current reward
 		alpha = self.learningRate
 		beta = 1 - alpha
+		# we need to store the update in a variable temp since we'll use it in a bit
+		temp = beta*lastPolicy[self.lastAction] + alpha*reward
+		lastPolicy[self.lastAction] = temp
 
-		temp = beta*policy[self.lastAction] + alpha*reward
-
-		policy[self.lastAction] = temp
-
-		policy = self.getPolicy(self.secondLastState, self.Q)
-
-		policy[self.secondLastAction] += self.learningRate*self.discount*temp 
+		# we now update the second last policy, using the same rule with different parameters.
+		# This is so that the agent can think ahead, we don't want it to take an action with high reward that will
+		# lead it into a bad position. We accomplish this by making the reward for a certain state/action combination
+		# a weighted average of itself and the state/action combinations it is likely to lead to.
+		secondLastPolicy = self.getPolicy(self.secondLastState, self.Q)
+		alpha = self.discount*self.learningRate
+		beta = 1 - alpha
+		secondLastPolicy[self.secondLastAction] = beta*secondLastPolicy[self.secondLastAction] + alpha*temp 
 
 
 
