@@ -153,7 +153,7 @@ class QLearningAgent:
 		# expected reward and the current reward
 		alpha = self.learningRate
 		beta = 1 - alpha
-		# we need to store the update in a variable temp since we'll use it in a bit
+		# we need to store the update in a variable temp since we'll use it again in a bit
 		temp = beta*lastPolicy[self.lastAction] + alpha*reward
 		lastPolicy[self.lastAction] = temp
 

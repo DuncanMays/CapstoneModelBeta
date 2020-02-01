@@ -1,14 +1,15 @@
 from random import normalvariate, randint
 from QLearningAgent import QLearningAgent
 from matplotlib import pyplot as plt
+from numpy import arange
 
 # the actions that the agent will be allowed to perform
 actions = ['stop', 'run']
 
 # the state dimensions
-stateDim1 = [-1, 0.1, 1]
-stateDim2 = [-1, 0.1, 1]
-stateDim3 = [-1, 0.1, 1]
+stateDim1 = arange(-1,1,0.5)
+stateDim2 = arange(0,10, 1)
+stateDim3 = arange(-1,2,1)
 
 agent = QLearningAgent(actions)
 
@@ -20,7 +21,7 @@ index1 = randint(0, len(stateDim1))-1
 index2 = randint(0, len(stateDim2))-1
 index3 = randint(0, len(stateDim3))-1
 
-for i in range(0,1000):
+for i in range(0,10000):
 	# print(agent.lookUp([1,1,1], agent.Q))
 
 	# resets reward
@@ -52,6 +53,16 @@ for i in range(0,1000):
 
 	performance.append(reward)
 
-x = range(0, len(performance))
-plt.plot(x, performance)
+# time to calculate the average reward across a time period of num iterations
+print('plotting')
+num = 1
+toPlot = []
+for i in range(0, len(performance)-num):
+	sum = 0
+	for j in range(0,num):
+		sum += performance[j]
+	toPlot.append(sum)
+
+x = range(0, len(toPlot))
+plt.plot(x, toPlot)
 plt.show()
