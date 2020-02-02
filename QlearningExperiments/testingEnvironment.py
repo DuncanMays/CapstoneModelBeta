@@ -25,7 +25,10 @@ priceOfProductionIndex = randint(0, len(priceOfProduction))-1
 priceOfRetailIndex = randint(0, len(priceOfRetail))-1
 chargeIndex = randint(0, len(charge))-1
 
-for i in range(0,500000):
+print('running simulation')
+
+numIterations = 500000
+for i in range(0,numIterations):
 	# print(agent.lookUp([1,1,1], agent.Q))
 
 	# resets reward
@@ -66,6 +69,12 @@ for i in range(0,500000):
 	priceOfRetailIndex = (priceOfRetailIndex+randint(-1,1))%len(priceOfRetail)
 	chargeIndex = (chargeIndex+randint(-1,1))%len(charge)
 
+	# prints progress, WILL NOT WORK WITH PYTHON2
+	# erases the last output
+	print('\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b', end = '')
+	# produces new output
+	print(' %'+str(100*i/numIterations), end = '')
+
 	# gives agent the reward
 	agent.giveReward(reward)
 
@@ -73,15 +82,26 @@ for i in range(0,500000):
 	performance.append(reward)
 
 # time to calculate the average reward across a time period of num iterations
-print('plotting')
-num = 100
+# adds new line
+print()
+print('plotting results')
+num = 1000
 toPlot = []
-for i in range(0, len(performance)-num):
+numIterations = len(performance)-num
+for i in range(0, numIterations):
 	sum = 0
 	for j in range(i,i+num):
 		sum += performance[j]
-	# print(performance[i])
 	toPlot.append(sum)
+
+	# prints progress, WILL NOT WORK WITH PYTHON2
+	# erases the last output
+	print('\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b', end = '')
+	# produces new output
+	print(' %'+str(100*i/numIterations), end = '')
+
+# adds new line
+print()
 
 x = range(0, len(toPlot))
 plt.plot(x, toPlot)
