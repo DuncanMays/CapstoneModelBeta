@@ -7,9 +7,9 @@ from numpy import arange
 actions = ['forward', 'backward', 'stay still']
 
 # the state dimensions
-time = arange(-12, 12, 0.5)
-localDemand = arange(-2, 2, 0.5)
-priceOfProduction = arange(-5, 5, 0.5)
+time = arange(-12, 12, 1)
+localDemand = arange(-2, 2, 1)
+priceOfProduction = arange(-5, 5, 1)
 priceOfRetail = arange(-5, 5, 1)
 charge = arange(-3, 3, 1)
 
@@ -25,7 +25,7 @@ priceOfProductionIndex = randint(0, len(priceOfProduction))-1
 priceOfRetailIndex = randint(0, len(priceOfRetail))-1
 chargeIndex = randint(0, len(charge))-1
 
-for i in range(0,1000000):
+for i in range(0,500000):
 	# print(agent.lookUp([1,1,1], agent.Q))
 
 	# resets reward
@@ -35,8 +35,6 @@ for i in range(0,1000000):
 	action = agent.getAction([time[timeIndex], localDemand[localDemandIndex], priceOfProduction[priceOfProductionIndex], priceOfRetail[priceOfRetailIndex], charge[chargeIndex]])
 
 	if (action == 'forward'):
-		# only run will cause the agent to recieve an award
-		reward = time[timeIndex] + localDemand[localDemandIndex] + priceOfProduction[priceOfProductionIndex] + priceOfRetail[priceOfRetailIndex] + charge[chargeIndex]
 		# the index in each dimenison is incremented upwards
 		timeIndex = (timeIndex+1)%len(time)
 		localDemandIndex = (localDemandIndex+1)%len(localDemand)
@@ -45,6 +43,9 @@ for i in range(0,1000000):
 		chargeIndex = (chargeIndex+1)%len(charge)
 
 	elif (action == 'backward'):
+		# the agent to recieves an award
+		reward = time[timeIndex] + localDemand[localDemandIndex] + priceOfProduction[priceOfProductionIndex] + priceOfRetail[priceOfRetailIndex] + charge[chargeIndex]
+
 		# the index in each dimenison is incremented downwards, with no reward, this will test if the agent can think ahead
 		timeIndex = (timeIndex-1)%len(time)
 		localDemandIndex = (localDemandIndex-1)%len(localDemand)
