@@ -7,10 +7,10 @@ from math import sin
 # the actions that the agent will be allowed to perform
 actions = ['forward', 'backward', 'stay still']
 
-temp = arange(0, 10, 0.1)
+temp = arange(0, 10, 0.0001)
 value = []
 for i in temp:
-	value.append(sin(i)+i/4)
+	value.append(sin(i)+i/3)
 
 agent = QLearningAgent(actions, exploration = 0.01)
 
@@ -21,7 +21,7 @@ index = 0
 
 print('running simulation')
 
-numIterations = 500000
+numIterations = 300000
 for i in range(0,numIterations):
 	# print(agent.lookUp([1,1,1], agent.Q))
 
@@ -83,6 +83,6 @@ for i in range(0, numIterations):
 # adds new line
 print()
 
-x = range(0, len(toPlot[200000:400000]))
-plt.plot(x, toPlot[200000:400000])
+x = range(0, len(toPlot))
+plt.plot(x, toPlot)
 plt.show()
