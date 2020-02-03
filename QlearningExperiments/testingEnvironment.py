@@ -2,34 +2,22 @@ from random import normalvariate, randint
 from QLearningAgent import QLearningAgent
 from matplotlib import pyplot as plt
 from numpy import arange
+from math import sin
 
 # the actions that the agent will be allowed to perform
 actions = ['forward', 'backward', 'stay still']
 
-# the state dimensions
-time = arange(-12, 12, 1)
-localDemand = arange(-2, 2, 1)
-priceOfProduction = arange(-5, 5, 1)
-priceOfRetail = arange(-5, 5, 1)
-charge = arange(-3, 3, 1)
+temp = arange(0, 10, 0.1)
+value = []
+for i in temp:
+	value.append(sin(i)+i/4)
 
-agent = QLearningAgent(actions, discount = 0.25)
+agent = QLearningAgent(actions, exploration = 0.01)
 
 # this list will hold the reward the agent recieves at each timestep, it will be used to plot the agent's performance
 performance = []
 
-# the state variables are randomly initialized
-# timeIndex = randint(0, len(time))-1
-# localDemandIndex = randint(0, len(localDemand))-1
-# priceOfProductionIndex = randint(0, len(priceOfProduction))-1
-# priceOfRetailIndex = randint(0, len(priceOfRetail))-1
-# chargeIndex = randint(0, len(charge))-1
-
-timeIndex = 0
-localDemandIndex = 0
-priceOfProductionIndex = 0
-priceOfRetailIndex = 0
-chargeIndex = 0
+index = 0
 
 print('running simulation')
 
@@ -41,28 +29,18 @@ for i in range(0,numIterations):
 	reward = 0
 
 	# gets action from agent
-	action = agent.getAction([time[timeIndex], localDemand[localDemandIndex], priceOfProduction[priceOfProductionIndex], priceOfRetail[priceOfRetailIndex], charge[chargeIndex]])
+	action = agent.getAction([value[index]])
 
 	if (action == 'forward'):
 		# print('forward')
-		# the index in each dimenison is incremented upwards
-		timeIndex = (timeIndex+1)%len(time)
-		localDemandIndex = (localDemandIndex+1)%len(localDemand)
-		priceOfProductionIndex = (priceOfProductionIndex+1)%len(priceOfProduction)
-		priceOfRetailIndex = (priceOfRetailIndex+1)%len(priceOfRetail)
-		chargeIndex = (chargeIndex+1)%len(charge)
+		index = (index+1)%len(value)
 
 	elif (action == 'backward'):
 		# print('backward')
 		# the agent to recieves an award
-		reward = time[timeIndex] + localDemand[localDemandIndex] + priceOfProduction[priceOfProductionIndex] + priceOfRetail[priceOfRetailIndex] + charge[chargeIndex]
+		reward = value[index]
+		index -= (index-1)%len(value)
 
-		# the index in each dimenison is incremented downwards, with no reward, this will test if the agent can think ahead
-		timeIndex = (timeIndex-1)%len(time)
-		localDemandIndex = (localDemandIndex-1)%len(localDemand)
-		priceOfProductionIndex = (priceOfProductionIndex-1)%len(priceOfProduction)
-		priceOfRetailIndex = (priceOfRetailIndex-1)%len(priceOfRetail)
-		chargeIndex = (chargeIndex-1)%len(charge)
 
 	elif (action == 'stay still'):
 		# print('stay still')
@@ -70,13 +48,6 @@ for i in range(0,numIterations):
 
 	else:
 		print("this shouldn't happen")
-
-	# the state variables are randomly altered
-	# timeIndex = (timeIndex+randint(-1,1))%len(time)
-	# localDemandIndex = (localDemandIndex+randint(-1,1))%len(localDemand)
-	# priceOfProductionIndex = (priceOfProductionIndex+randint(-1,1))%len(priceOfProduction)
-	# priceOfRetailIndex = (priceOfRetailIndex+randint(-1,1))%len(priceOfRetail)
-	# chargeIndex = (chargeIndex+randint(-1,1))%len(charge)
 
 	# prints progress, WILL NOT WORK WITH PYTHON2
 	# erases the last output
@@ -94,7 +65,7 @@ for i in range(0,numIterations):
 # adds new line
 print()
 print('plotting results')
-num = 50
+num = 25
 toPlot = []
 numIterations = len(performance)-num
 for i in range(0, numIterations):
