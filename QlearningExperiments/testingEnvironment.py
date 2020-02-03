@@ -13,17 +13,23 @@ priceOfProduction = arange(-5, 5, 1)
 priceOfRetail = arange(-5, 5, 1)
 charge = arange(-3, 3, 1)
 
-agent = QLearningAgent(actions)
+agent = QLearningAgent(actions, discount = 0.25)
 
 # this list will hold the reward the agent recieves at each timestep, it will be used to plot the agent's performance
 performance = []
 
 # the state variables are randomly initialized
-timeIndex = randint(0, len(time))-1
-localDemandIndex = randint(0, len(localDemand))-1
-priceOfProductionIndex = randint(0, len(priceOfProduction))-1
-priceOfRetailIndex = randint(0, len(priceOfRetail))-1
-chargeIndex = randint(0, len(charge))-1
+# timeIndex = randint(0, len(time))-1
+# localDemandIndex = randint(0, len(localDemand))-1
+# priceOfProductionIndex = randint(0, len(priceOfProduction))-1
+# priceOfRetailIndex = randint(0, len(priceOfRetail))-1
+# chargeIndex = randint(0, len(charge))-1
+
+timeIndex = 0
+localDemandIndex = 0
+priceOfProductionIndex = 0
+priceOfRetailIndex = 0
+chargeIndex = 0
 
 print('running simulation')
 
@@ -38,6 +44,7 @@ for i in range(0,numIterations):
 	action = agent.getAction([time[timeIndex], localDemand[localDemandIndex], priceOfProduction[priceOfProductionIndex], priceOfRetail[priceOfRetailIndex], charge[chargeIndex]])
 
 	if (action == 'forward'):
+		# print('forward')
 		# the index in each dimenison is incremented upwards
 		timeIndex = (timeIndex+1)%len(time)
 		localDemandIndex = (localDemandIndex+1)%len(localDemand)
@@ -46,6 +53,7 @@ for i in range(0,numIterations):
 		chargeIndex = (chargeIndex+1)%len(charge)
 
 	elif (action == 'backward'):
+		# print('backward')
 		# the agent to recieves an award
 		reward = time[timeIndex] + localDemand[localDemandIndex] + priceOfProduction[priceOfProductionIndex] + priceOfRetail[priceOfRetailIndex] + charge[chargeIndex]
 
@@ -57,17 +65,18 @@ for i in range(0,numIterations):
 		chargeIndex = (chargeIndex-1)%len(charge)
 
 	elif (action == 'stay still'):
+		# print('stay still')
 		pass
 
 	else:
-		print("the agent has given something other than stop or go as its action, this shouldn't happen")
+		print("this shouldn't happen")
 
 	# the state variables are randomly altered
-	timeIndex = (timeIndex+randint(-1,1))%len(time)
-	localDemandIndex = (localDemandIndex+randint(-1,1))%len(localDemand)
-	priceOfProductionIndex = (priceOfProductionIndex+randint(-1,1))%len(priceOfProduction)
-	priceOfRetailIndex = (priceOfRetailIndex+randint(-1,1))%len(priceOfRetail)
-	chargeIndex = (chargeIndex+randint(-1,1))%len(charge)
+	# timeIndex = (timeIndex+randint(-1,1))%len(time)
+	# localDemandIndex = (localDemandIndex+randint(-1,1))%len(localDemand)
+	# priceOfProductionIndex = (priceOfProductionIndex+randint(-1,1))%len(priceOfProduction)
+	# priceOfRetailIndex = (priceOfRetailIndex+randint(-1,1))%len(priceOfRetail)
+	# chargeIndex = (chargeIndex+randint(-1,1))%len(charge)
 
 	# prints progress, WILL NOT WORK WITH PYTHON2
 	# erases the last output
@@ -85,14 +94,14 @@ for i in range(0,numIterations):
 # adds new line
 print()
 print('plotting results')
-num = 1000
+num = 50
 toPlot = []
 numIterations = len(performance)-num
 for i in range(0, numIterations):
 	sum = 0
 	for j in range(i,i+num):
 		sum += performance[j]
-	toPlot.append(sum)
+	toPlot.append(sum/num)
 
 	# prints progress, WILL NOT WORK WITH PYTHON2
 	# erases the last output
@@ -103,6 +112,6 @@ for i in range(0, numIterations):
 # adds new line
 print()
 
-x = range(0, len(toPlot))
-plt.plot(x, toPlot)
+x = range(0, len(toPlot[200000:400000]))
+plt.plot(x, toPlot[200000:400000])
 plt.show()
