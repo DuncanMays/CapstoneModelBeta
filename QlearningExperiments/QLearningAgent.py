@@ -79,6 +79,13 @@ class QLearningAgent:
 			for i in self.actions:
 				# randomly initializes policy
 				q[i] = uniform(-1, 1)
+
+			# adds a reducer factor, this will reduce over time to ensure that the Q-learning agent converges to the optimal
+			# policy in each state, according to the rule that its sum accros timesteps is infinity but the sum of the 
+			# squares is finite.
+			# this means that no action can be called reducerFactor, too bad so sad
+			q['reducerFactor'] = 1
+
 			return q
 
 	'''
@@ -151,7 +158,7 @@ class QLearningAgent:
 
 		# changes the expected reward of the last state/action combination to a weighted average between the previous
 		# expected reward and the current reward
-		alpha = self.learningRate
+		alpha = lastPolicy['reducerFactor']*self.learningRate
 		beta = 1 - alpha
 		# we need to store the update in a variable temp since we'll use it again in a bit
 		temp = beta*lastPolicy[self.lastAction] + alpha*reward
@@ -162,9 +169,14 @@ class QLearningAgent:
 		# lead it into a bad position. We accomplish this by making the reward for a certain state/action combination
 		# a weighted average of itself and the state/action combinations it is likely to lead to.
 		secondLastPolicy = self.getPolicy(self.secondLastState, self.Q)
-		alpha = self.discount*self.learningRate
+		alpha = secondLastPolicy['reducerFactor']*self.discount*self.learningRate
 		beta = 1 - alpha
 		secondLastPolicy[self.secondLastAction] = beta*secondLastPolicy[self.secondLastAction] + alpha*temp 
+
+		# updates the reducer factor of the last action so that if n is the number of times that state has been visited,
+		# the reducer factor equals 1/n
+		newDenominator = 1/lastPolicy['reducerFactor'] + 1
+		lastPolicy['reducerFactor'] = 1/newDenominator
 
 
 
