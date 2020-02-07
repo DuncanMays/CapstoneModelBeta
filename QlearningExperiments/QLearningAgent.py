@@ -1,6 +1,7 @@
 # Written by Duncan Mays in January 2020 for his fourth year Capstone Project
 
 from random import uniform, choice
+import yaml
 
 '''
 This class will use Q learning to maximize the reward it recieves
@@ -40,7 +41,7 @@ class QLearningAgent:
 	discount controls how much the agent values future rewards, high discount values mean the agent 'plans ahead' more
 	exploration controls how likely the agent is to randomly select policy
 	'''
-	def __init__(self, actions, learningRate=0.1 , discount=0.25 , exploration=0.1):
+	def __init__(self, actions=[1,0], learningRate=0.1 , discount=0.25 , exploration=0.1):
 
 		self.Q = {}
 		self.actions = actions
@@ -166,5 +167,19 @@ class QLearningAgent:
 		beta = 1 - alpha
 		secondLastPolicy[self.secondLastAction] = beta*secondLastPolicy[self.secondLastAction] + alpha*temp 
 
+	# encodes the agent into a string format called yaml
+	def toString(self):
+		return yaml.dump(self.__dict__)
 
+	# decodes yaml into a config object which then can be used to reconstruct a saved agent
+	def fromString(self, string):
+		config = yaml.safe_load(string)
 
+		self.Q = config['Q']
+		self.actions = config['actions']
+		self.discount = config['discount']
+		self.exploration = config['exploration']
+		self.lastAction = config['lastAction']
+		self.secondLastAction =  config['secondLastAction']
+		self.lastState = config['lastState']
+		self.secondLastState = config['secondLastState']
