@@ -1,6 +1,7 @@
 # Written by Duncan Mays in January 2020 for his fourth year Capstone Project
 
 from random import uniform, choice
+import yaml
 
 '''
 This class will use Q learning to maximize the reward it recieves
@@ -40,8 +41,7 @@ class QLearningAgent:
 	discount controls how much the agent values future rewards, high discount values mean the agent 'plans ahead' more
 	exploration controls how likely the agent is to randomly select policy
 	'''
-	def __init__(self, actions, learningRate=0.1 , discount=0.25 , exploration=0.1):
-
+	def __init__(self, actions=[0,1], learningRate=0.1 , discount=0.25 , exploration=0.1):
 		self.Q = {}
 		self.actions = actions
 		self.learningRate = learningRate
@@ -79,6 +79,13 @@ class QLearningAgent:
 			for i in self.actions:
 				# randomly initializes policy
 				q[i] = uniform(-1, 1)
+
+			# adds a reducer factor, this will reduce over time to ensure that the Q-learning agent converges to the optimal
+			# policy in each state, according to the rule that its sum accros timesteps is infinity but the sum of the 
+			# squares is finite.
+			# this means that no action can be called reducerFactor, too bad so sad
+			q['reducerFactor'] = 1
+
 			return q
 
 	'''
@@ -151,9 +158,9 @@ class QLearningAgent:
 
 		# changes the expected reward of the last state/action combination to a weighted average between the previous
 		# expected reward and the current reward
-		alpha = self.learningRate
+		alpha = lastPolicy['reducerFactor']*self.learningRate
 		beta = 1 - alpha
-		# we need to store the update in a variable temp since we'll use it in a bit
+		# we need to store the update in a variable temp since we'll use it again in a bit
 		temp = beta*lastPolicy[self.lastAction] + alpha*reward
 		lastPolicy[self.lastAction] = temp
 
@@ -162,9 +169,29 @@ class QLearningAgent:
 		# lead it into a bad position. We accomplish this by making the reward for a certain state/action combination
 		# a weighted average of itself and the state/action combinations it is likely to lead to.
 		secondLastPolicy = self.getPolicy(self.secondLastState, self.Q)
-		alpha = self.discount*self.learningRate
+		alpha = secondLastPolicy['reducerFactor']*self.discount*self.learningRate
 		beta = 1 - alpha
 		secondLastPolicy[self.secondLastAction] = beta*secondLastPolicy[self.secondLastAction] + alpha*temp 
 
+		# updates the reducer factor of the last action so that if n is the number of times that state has been visited,
+		# the reducer factor equals 1/n
+		newDenominator = 1/lastPolicy['reducerFactor'] + 1
+		lastPolicy['reducerFactor'] = 1/newDenominator
 
+	def toString(self):
+		return yaml.dump(self.__dict__)
 
+	def fromString(self, string):
+		# parses yaml into a config object
+		config = yaml.safe_load(string)
+
+		# uses config object to configure variables to match the saved model
+		self.Q = config['Q']
+		self.actions = config['actions']
+		self.learningRate = config['learningRate']
+		self.discount = config['discount']
+		self.exploration = config['exploration']
+		self.secondLastState = config['secondLastState']
+		self.secondLastAction = config['secondLastAction']
+		self.lastState = config['lastState']
+		self.lastAction = config['lastAction']
