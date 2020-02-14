@@ -1,5 +1,14 @@
 from numpy.random import normal
 import math
+import pandas as pd
+from matplotlib import pyplot as plt
+
+hourMean = pd.read_pickle('../Data/hourmeans')
+hourDemandMean = hourMean['Ontario']/10000
+# print(hourDemandMean)
+
+def ontarioAverage(time):
+	return hourDemandMean[float(time%24.0)+1]
 
 class MarkovSource:
 
@@ -31,10 +40,16 @@ class MarkovSource:
 
 		return self.state
 
+# class House(MarkovSource):
+# 	# houses have fairly high variance, but low average consumption
+# 	# their expected consumption follows a sin wave, we should change this later
+# 	def __init__(self, meanFunction = lambda x : 4*math.sin(x*math.pi/12) + 20, variance = 8, initialCondition = 20):
+# 		MarkovSource.__init__(self, meanFunction, variance, initialCondition)
+
 class House(MarkovSource):
 	# houses have fairly high variance, but low average consumption
 	# their expected consumption follows a sin wave, we should change this later
-	def __init__(self, meanFunction = lambda x : 4*math.sin(x*math.pi/12) + 20, variance = 8, initialCondition = 20):
+	def __init__(self, meanFunction = ontarioAverage, variance = 0.1, initialCondition = 1):
 		MarkovSource.__init__(self, meanFunction, variance, initialCondition)
 
 class Factory(MarkovSource):
@@ -51,3 +66,14 @@ class WindTurbine(MarkovSource):
 	# the mean function for wind farms is constant, with very high variance
 	def __init__(self, meanFunction = lambda x : 30, variance = 16, initialCondition = 30):
 			MarkovSource.__init__(self, meanFunction, variance, initialCondition)
+
+
+house = House()
+demand = []
+for i in range(0,24):
+	demand.append(house.update(i))
+
+plt.plot(range(0,len(demand)), demand)
+plt.show()
+
+
