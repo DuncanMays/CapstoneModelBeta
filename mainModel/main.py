@@ -5,7 +5,8 @@ import math
 
 # this array holds all the times throughout the day that our model will iterate
 # right now I've set it to 15 minute intervals, we should take care in other 
-# parts of the program to allow intervals of other sizes
+# parts of the program to allow intervals of other sizes, as we may want to change 
+# this as our Q-learning algorithm evolves.
 # numpy.arange does the same thing as linspace in Matlab
 T = arange(0, 24, 0.25)
 
