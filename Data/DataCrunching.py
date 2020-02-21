@@ -39,7 +39,10 @@ for i in range(1):
     mean = (mean+meanwalk(hourmeans['Solar'],24))/(2)
 pd.Series(mean).plot()
 hourmeans['Solar'].plot()
-print(mean)
+#print(mean)
+
+hourmean = pd.read_pickle('hourmeans')
+print(hourmean['Ontario'])
 
 # def meanwalk2(series,integer):
 #     value = np.zeros(integer)
