@@ -1,14 +1,16 @@
 from matplotlib import pyplot as plt
 from numpy import arange
-from markovSources import House, Factory, SolarPanel, WindTurbine
+from markovSources import SolarPanel, WindTurbine
+from transformerBox import TransformerBox
 import math
+from random import randint
 
 # this array holds all the times throughout the day that our model will iterate
 # right now I've set it to 15 minute intervals, we should take care in other 
 # parts of the program to allow intervals of other sizes, as we may want to change 
 # this as our Q-learning algorithm evolves.
 # numpy.arange does the same thing as linspace in Matlab
-T = arange(0, 24, 0.25)
+T = arange(0, 24, 1)
 
 # baseline power production, this will be the amount of electricity produced by nuclear
 # power plants
@@ -17,17 +19,6 @@ baseline = 9779
 # I am going to make the hydro production schedule a sin wave just to start out with,
 # we should definetely look at IESO data and find a function that fits it better 
 hydroSchedule = lambda x : 1900*math.sin(x*math.pi/12) + 1900
-
-# this array will hold all the consumers that draw electricity in a stochastic manner
-stochasticConsumers = []
-numHouses = 500
-numFactories = 20
-# creates numHouses instances of the House class
-for i in range(0,numHouses):
-	stochasticConsumers.append(House())
-# creates numFactories instances of the Factory class
-for i in range(0,numFactories):
-	stochasticConsumers.append(Factory())
 
 # This array holds the producers that produce in a stochastic manner
 stochasticProducers = []
@@ -53,6 +44,11 @@ gasPrice = 3
 # by both wind and solar, this is probably a bad assumption
 renewablePrice = 0.1
 
+numBoxes = 20
+boxes = []
+for i in range(0, numBoxes):
+	boxes.append(TransformerBox(randint(20, 50), 0.9))
+
 # returns the retail price of electricity at the given time, in cents per kWh
 # lambda functions don't like if statements, so I had to use an actual function
 # this is Ontario's winter pricing scheme
@@ -75,9 +71,6 @@ prodPrice = []
 
 # main program loop
 # each iteration of this loop represents one day in the model
-# while(True):
-# for testing purposes, I've commented out the origional while statement and replaced it with a for loop
-# this is so that the loop will only iterate once, which makes testing possible
 for dummy in range(0,1):
 	# each iteration in this loop represents one time interval (not a full day)
 	for t in T:
@@ -100,8 +93,8 @@ for dummy in range(0,1):
 			priceOfProduction += renewablePrice*renewableProduction
 
 		# users draw electricity from grid
-		for consumer in stochasticConsumers:
-			totalDemand += consumer.update(t)
+		for i in boxes:
+			totalDemand += i.update(t)
 
 		# production from gas-fired plants is added to the grid
 		if(totalDemand > totalProduction):
@@ -111,11 +104,11 @@ for dummy in range(0,1):
 
 		# these lines only serve to make plots below
 		demand.append(totalDemand)
-		production.append(totalProduction)
-		prodPrice.append(priceOfProduction)
+		# production.append(totalProduction)
+		# prodPrice.append(priceOfProduction)
 
 # plots everything all nice and pretty
 plt.plot(T, demand)
-plt.plot(T, production)
-plt.plot(T,prodPrice)
+# plt.plot(T, production)
+# plt.plot(T,prodPrice)
 plt.show()

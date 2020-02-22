@@ -68,12 +68,12 @@ class WindTurbine(MarkovSource):
 			MarkovSource.__init__(self, meanFunction, variance, initialCondition)
 
 
-house = House()
-demand = []
-for i in range(0,24):
-	demand.append(house.update(i))
+# house = House()
+# demand = []
+# for i in range(0,24):
+# 	demand.append(house.update(i))
 
-plt.plot(range(0,len(demand)), demand)
-plt.show()
+# plt.plot(range(0,len(demand)), demand)
+# plt.show()
 
 
