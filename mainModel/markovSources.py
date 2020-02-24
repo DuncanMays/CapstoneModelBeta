@@ -1,4 +1,5 @@
 from numpy.random import normal
+import numpy as np
 import math
 import pandas as pd
 from matplotlib import pyplot as plt
@@ -40,17 +41,42 @@ class MarkovSource:
 
 		return self.state
 
+class MarkovLive:
+
+	'''
+	series is the data that the source will emulate
+	'''
+	def __init__(self, series):
+		self.series = series
+		# calculates the standard deviation
+		self.std = float(series.std())
+		# initialized state
+		self.x = max(series.iloc[0] + self.std*(2*np.random.random_sample()-1),0)
+
+	def update(self, time):
+		delta = (self.series.iloc[time] - self.x)/self.std
+		if delta > 0:
+			if np.random.random_sample() > delta:
+				self.x = max(self.x + np.random.normal(loc=0,scale=delta*self.std+.1),0)
+			else:
+				self.x = max(self.x + np.random.normal(loc=delta*self.std/2,scale=delta*self.std+.1),0)
+		else:
+			if np.random.random_sample() > -delta:
+				self.x = max(self.x + np.random.normal(loc=0,scale=-delta*self.std+.1),0)
+			else:
+				self.x = max(self.x + np.random.normal(loc=delta*self.std/2,scale=-delta*self.std+.1),0)
+
+		return self.x
+
 # class House(MarkovSource):
 # 	# houses have fairly high variance, but low average consumption
 # 	# their expected consumption follows a sin wave, we should change this later
-# 	def __init__(self, meanFunction = lambda x : 4*math.sin(x*math.pi/12) + 20, variance = 8, initialCondition = 20):
+# 	def __init__(self, meanFunction = ontarioAverage, variance = 0.1, initialCondition = 1):
 # 		MarkovSource.__init__(self, meanFunction, variance, initialCondition)
 
-class House(MarkovSource):
-	# houses have fairly high variance, but low average consumption
-	# their expected consumption follows a sin wave, we should change this later
-	def __init__(self, meanFunction = ontarioAverage, variance = 0.1, initialCondition = 1):
-		MarkovSource.__init__(self, meanFunction, variance, initialCondition)
+class House(MarkovLive):
+	def __init__(self):
+		MarkovLive.__init__(self, hourDemandMean)
 
 class Factory(MarkovSource):
 	# factories have fairly low variance, but high average consumption
