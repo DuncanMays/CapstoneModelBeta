@@ -182,7 +182,7 @@ class QLearningAgent:
 		return yaml.dump(self.__dict__)
 
 	def fromString(self, string):
-		# parses yaml into a config object
+		# parses string into a config object
 		config = yaml.safe_load(string)
 
 		# uses config object to configure variables to match the saved model

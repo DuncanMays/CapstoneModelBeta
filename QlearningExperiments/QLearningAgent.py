@@ -171,7 +171,8 @@ class QLearningAgent:
 		secondLastPolicy = self.getPolicy(self.secondLastState, self.Q)
 		alpha = secondLastPolicy['reducerFactor']*self.discount*self.learningRate
 		beta = 1 - alpha
-		secondLastPolicy[self.secondLastAction] = beta*secondLastPolicy[self.secondLastAction] + alpha*temp 
+		# secondLastPolicy[self.secondLastAction] = beta*secondLastPolicy[self.secondLastAction] + alpha*temp 
+		secondLastPolicy[self.secondLastAction] = secondLastPolicy[self.secondLastAction] + alpha*temp 
 
 		# updates the reducer factor of the last action so that if n is the number of times that state has been visited,
 		# the reducer factor equals 1/n
