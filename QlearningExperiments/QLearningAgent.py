@@ -20,6 +20,7 @@ getAction takes a list representing the state, and uses it to look up the approp
 giveReward takes a float and adjusts the last leaf to reflect the reward it has recieved.
 
 It is very important to call getAction and giveReward in alternating order, otherwise the agent will not learn properly.
+Or, you could only call getAction, if you don't want the agent to learn.
 
 I have taken an unconventional approach to encoding the Q-table. Instead of using a 2D list (table), I have used nested
  dicts in a sort of tree configuration. The advantage of this is that we do not have to 'set up' the Q-table on
