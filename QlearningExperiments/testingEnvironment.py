@@ -83,7 +83,7 @@ for i in range(0,numIterations):
 # time to calculate the average reward across a time period of num iterations
 # adds new line
 print()
-print('plotting results')
+print('forming results')
 num = 300
 toPlot = []
 numIterations = len(performance)-num
