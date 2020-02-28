@@ -62,6 +62,9 @@ class QLearningAgent:
 		return action
 
 	def giveReward(self, reward):
+		if(not self.exploring):
+			return
+
 		lastLeaf = self.getLeaf(self.lastState, self.Q)
 
 		alpha = lastLeaf[self.lastAction]['alpha']
@@ -82,19 +85,19 @@ class QLearningAgent:
 
 		# updates the policy key in all leaves in the Qtree, it also resets
 		#  all alpha values to 1 for every state/action combination.
-		updatePolicy(self.Q)
+		self.updatePolicy(self.Q)
 
 	def updatePolicy(self, q):
-		if(('type' in q) && (q['type'] == 'leaf')):
+		if(('type' in q) and (q['type'] == 'leaf')):
 			# this block will execute if q is a leaf
 
 			# iterates accross the actions for two reasons:
 			#  the first is resets their alpha values to 1
 			#  the second is to find the action with the maximal expected reward
 			optimalAction = self.actions[0]
-			for i in q:
+			for i in self.actions:
 				# resets alpha
-				i['alpha'] = 1
+				q[i]['alpha'] = 1
 				# checks if i has a greater expected reward than the optimal
 				#  action, if it does, set optimalAction to i
 				if (q[i]['reward'] > q[optimalAction]['reward']):
@@ -103,8 +106,8 @@ class QLearningAgent:
 			# this set will hold the actions that have expected reward within
 			#  self.delta of the optimal action
 			A = []
-			for i in q:
-				if (q[i]['reward'] > q[optimalAction]['reward']+self.delta):
+			for i in self.actions:
+				if (q[i]['reward'] > q[optimalAction]['reward']-self.delta):
 					A.append(i)
 
 			# sets the policy for the state this leaf corresponds to to a random
@@ -115,7 +118,7 @@ class QLearningAgent:
 			# this block will execute if q is a node in the Qtree
 			for i in q:
 				# recursively calls updatePolicy on all branches off of q
-				updatePolicy(q)
+				self.updatePolicy(q[i])
 
 	# this method is called when the agent begins exploring
 	def startExploring(self):
