@@ -47,7 +47,7 @@ class QLearningAgent:
 			return q
 
 	def getAction(self, state):
-		if (uniform(0, 1) < self.rho):
+		if ((self.exploring) and (uniform(0, 1) < self.rho)):
 			# small probability of selecting a random acion
 			action = choice(self.actions)
 		else:
