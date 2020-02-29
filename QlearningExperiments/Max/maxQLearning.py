@@ -62,6 +62,7 @@ class QLearningAgent:
 		return action
 
 	def giveReward(self, reward):
+		# if the agent is not exploring, do not update
 		if(not self.exploring):
 			return
 

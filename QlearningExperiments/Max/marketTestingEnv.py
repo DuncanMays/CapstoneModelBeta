@@ -2,6 +2,7 @@ from maxQLearning import QLearningAgent
 from random import random
 from numpy import arange
 from matplotlib import pyplot as plt
+from copy import copy
 
 def discretize(value, targetSet):
 	closestElement = targetSet[0]
@@ -9,24 +10,35 @@ def discretize(value, targetSet):
 		if (abs(value - i) < abs(value - closestElement)):
 			closestElement = i
 
-	return i
+	return closestElement
 
-class Agent():
+class Agent(QLearningAgent):
 
 	def __init__(self, actions):
-		self.Q = QLearningAgent(actions)
-		self.Q.startExploring()
-
 		self.stock = 0
 
+		self.rewards = []
+		self.stocks = []
+		self.actionsTaken = []
+
+		super(Agent, self).__init__(actions)
+
+	# positive action indicates that the agent is selling
+	# negative action indicates that the agent is buying
 	def getAction(self, state):
+		state = copy(state)
 		state.append(discretize(self.stock, arange(0, 5, 0.25)))
 
-		action = self.Q.getAction(state)
+		action = super(Agent, self).getAction(state)
 
 		if action < 0:
-			# if the agent buys, increase stock
-			self.stock += action
+			# if the agents buys, limit stock to 10
+
+			if (self.stock - action > 10):
+				action = self.stock - 10
+
+			self.stock -= action
+
 		else:
 			# if the agent sells, first make sure that there is enough stock
 			if self.stock < action:
@@ -34,10 +46,15 @@ class Agent():
 			
 			self.stock -= action
 
+		self.stocks.append(self.stock)
+		self.actionsTaken.append(action)
+
 		return action
 
 	def giveReward(self, reward):
-		self.Q.giveReward(reward)
+		super(Agent, self).giveReward(reward)
+
+		self.rewards.append(reward)
 
 
 possibleActions = [-1, -0.5, 0, 0.5, 1]
@@ -48,11 +65,20 @@ numAgents = 5
 agents = []
 for i in range(0, numAgents):
 	agents.append(Agent(possibleActions))
-	# agents[i].startExploring()
 
-prices = []
+explorationDuration = 100
+activeAgentIndex = 0
+activeAgent = agents[activeAgentIndex]
 
-for i in range(0,1000):
+for i in range(0,10000):
+
+	if (i%explorationDuration == 0):
+		# switch the agent that's exploring
+		activeAgent.finishExploring()
+		activeAgentIndex = (activeAgentIndex+1)%len(agents)
+		activeAgent = agents[activeAgentIndex]
+		activeAgent.startExploring()
+
 	supply = 5*random()
 	demand = 5*random()
 
@@ -73,12 +99,12 @@ for i in range(0,1000):
 			demand += -action
 
 	price = demand/supply
-	prices.append(actions[0])
 
 	# calculates reward based on the actions
 	for j in range(0, len(agents)):
 		agents[j].giveReward(price*action)
 
 plt.figure()
-plt.plot(range(0,len(prices)), prices)
+toPlot = agents[0].rewards
+plt.plot(range(0, len(toPlot)), toPlot)
 plt.show()
