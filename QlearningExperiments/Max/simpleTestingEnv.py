@@ -3,16 +3,6 @@ from maxQLearning import QLearningAgent
 from matplotlib import pyplot as plt
 from numpy import arange
 
-class Agent(QLearningAgent):
-
-	def __init__(self, actions):
-		super(Agent, self).__init__(actions)
-		self.exploring = True
-
-
-	def giveReward(self, reward):
-		super(Agent, self).giveReward(reward)
-
 # the actions that the agent will be allowed to perform
 actions = ['forward', 'backward', 'stay still']
 

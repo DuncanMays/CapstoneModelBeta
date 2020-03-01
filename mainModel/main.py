@@ -3,7 +3,54 @@ from numpy import arange
 from markovSources import SolarPanel, WindTurbine
 from transformerBox import TransformerBox
 import math
-from random import randint
+from random import randint, choice
+from QLearningAgent import QLearningAgent
+
+print('setting up')
+
+# this method takes a value and returns the closest element of the set it is given
+def quantize(value, targetSet):
+	closestElement = targetSet[0]
+	for i in targetSet:
+		if (abs(value - i) < abs(value - closestElement)):
+			closestElement = i
+
+	return closestElement
+
+# this class represents batterys in our model
+class Battery(QLearningAgent):
+
+	def __init__(self, actions, transformerBox):
+		self.charge = 0
+		self. transformerBox = transformerBox
+		
+		super(Battery, self).__init__(actions)
+
+	def getAction(self, state):
+		# quantizing local demand to an integer within 1 and 10, i have no idea if this is a good quantization
+		demand = quantize(self.transformerBox.totalDemand, arange(0, 10, 1))
+
+		# if we keep actions so a set that shares a factor we can avoid discretizing charge
+
+		# adds demand and charge to state so that the underlying Q-learning agent can 'see' them
+		state.append(demand)
+		state.append(self.charge)
+
+		action = super(Battery, self).getAction(state)
+
+		# we now must check to make sure that the action makes sense
+		# if we sell, have we sold more than the battery's charge?
+		# if we buy, will we reach the battery's capacity?
+
+		# negative action signifies selling electricity
+		if (action < 0) and (-action > self.charge):
+			action = -self.charge
+			self.charge += action
+		# I have assumed that the battery's max capacity is 10
+		elif (action + self.charge > 10):
+			action = 10 - self.charge
+
+		return action
 
 # this array holds all the times throughout the day that our model will iterate
 # right now I've set it to 15 minute intervals, we should take care in other 
@@ -27,6 +74,10 @@ for i in range(0,numSolarPanels):
 for i in range(0,numWindTurbines):
 	stochasticProducers.append(WindTurbine())
 
+# doesn't really matter what hydroTarget is initialized it, it will be updated to
+#  something usefull on the first cyle of the model. So long as whatever it is has the 
+#  same number of elements as T, the model will work. For this reason i've initialized
+#  it to T
 hydroTarget = T
 
 # the price of production at a given interval, initialized to zero
@@ -50,14 +101,42 @@ for i in range(0, numBoxes):
 	# the second parameter is the ratio between the number of houses and the number of factories served.
 	boxes.append(TransformerBox(randint(20, 50), 0.9))
 
+# we will now attach batteries to some of the boxes
+numBatteries = 50
+batteries = []
+
+# we need recursive behavior, so I will write this as a function
+# doing it like this means that the program will crash if the number of batterys exceeds the number of boxes
+def assignBattery(box):
+	if (box.containsAgent):
+		# the box already has a battery, meaning we must try again
+		assignBattery(choice(boxes))
+	else:
+		# the box has no battery
+		# actions are -1 to 1 at intervals of 1
+		box.containsAgent = True
+		battery = Battery([-1,0,1], box)
+		batteries.append(battery)
+
+for i in range(0, numBatteries):
+	# assigns a batter to a random box
+	assignBattery(choice(boxes))
+
+# this is something that needs to change
+priceOfRetail = 5
+
 # arrays that will be used to plot data at the end of the program, serve no other purpose than this
 demand = []
 production = []
 prodPrice = []
 
+print('starting model')
+
 # main program loop
 # each iteration of this loop represents one day in the model
-for dummy in range(0,5):
+for day in range(0, 5):
+	print('day: '+str(day))
+
 	hydroSchedule = hydroTarget
 	# clears hydroTarget for the next day
 	hydroTarget = []
@@ -68,6 +147,10 @@ for dummy in range(0,5):
 		totalProduction = 0
 		totalDemand = 0
 		priceOfProduction = 0
+
+		# production  from uncontrolled sources must be added to the grid first, 
+		#  as all other variables (demand, production from controlled sources like 
+		#  hydro and gas, as well as discharge from batteries) are determined using it.
 
 		# production from nuclear plants is added to the grid, 
 		# with necessary adjustments to priceOfProduction
@@ -80,7 +163,14 @@ for dummy in range(0,5):
 			totalProduction += renewableProduction
 			priceOfProduction += renewablePrice*renewableProduction
 
-		# users draw electricity from grid
+		# consumption must happen before any Q learning agents take action, and
+		#  before hydro and gas, as this will determine the electricity defecit,
+		#  which hydro will make up for in the next day and gas will make up for
+		#  today is one of the parameters of the learning agents. This might get
+		#  tricky if we ever implement post-pricing, as demand will be determined
+		#  by price.
+
+		#  users draw electricity from grid
 		for i in boxes:
 			totalDemand += i.update(t)
 
@@ -97,11 +187,36 @@ for dummy in range(0,5):
 			totalProduction += gasProduction
 			priceOfProduction += gasPrice*gasProduction
 
+		# we do Qlearning last. I had a bit of a dillemma on the order in which to implement this. Qlearning agents
+		#  need to know the price of production, which is determined by global demand, which is determined by the 
+		#  actions of Qlearning agents. What I've decided to do is push supply and demand from Qlearning agents into
+		#  the next timestep. This means that whatever electricity an agent buys or sells will be drawn from or 
+		#  pushed to the grid in the next timestep. These values are stored in the variables Qdemand and Qsupply.
+		Qdemand = 0
+		Qsupply = 0
+		actions = []
+
+		# get agents actions from time, price of retail, price of production
+		# the local demand, as well as the battery's capacity, will be added to state within the battery class.
+		for j in batteries:
+			actions.append(j.getAction([t, priceOfRetail, quantize(priceOfProduction, arange(35000, 40000, 500))]))
+
+		# calculate reward the reward for each agent
+		for j in range(0, len(batteries)):
+			action = actions[j]
+			if action < 0:
+				# the agent sold
+				batteries[j].giveReward(-priceOfRetail*action)
+			else:
+				# the agent bought
+				batteries[j].giveReward(priceOfProduction*action)
+
 		# these lines only serve to make plots below
 		demand.append(totalDemand)
 		production.append(totalProduction)
 		prodPrice.append(priceOfProduction)
 
+# the first day is tainted data, as hydroSchedule is not set to anything useful, we will cut it oput of the data
 demand = demand[len(T):len(demand)]
 production = production[len(T):len(production)]
 prodPrice = prodPrice[len(T):len(prodPrice)]

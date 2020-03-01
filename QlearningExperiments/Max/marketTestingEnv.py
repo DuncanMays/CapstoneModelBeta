@@ -70,7 +70,7 @@ explorationDuration = 100
 activeAgentIndex = 0
 activeAgent = agents[activeAgentIndex]
 
-for i in range(0,10000):
+for i in range(0,1000000):
 
 	if (i%explorationDuration == 0):
 		# switch the agent that's exploring
@@ -82,12 +82,10 @@ for i in range(0,10000):
 	supply = 5*random()
 	demand = 5*random()
 
-	Qstate = [discretize(supply, stateSet), discretize(demand, stateSet)]
-
 	actions = []
 	# gets the agent's actions
 	for j in agents:
-		action = j.getAction(Qstate)
+		action = j.getAction([discretize(supply, stateSet), discretize(demand, stateSet)])
 		actions.append(action)
 
 		# alters state according to the actions
@@ -98,13 +96,16 @@ for i in range(0,10000):
 			# if the agent bought
 			demand += -action
 
-	price = demand/supply
+	price = (demand+1)/(supply+1)
 
 	# calculates reward based on the actions
 	for j in range(0, len(agents)):
-		agents[j].giveReward(price*action)
+		agents[j].giveReward(price*actions[j])
 
 plt.figure()
 toPlot = agents[0].rewards
 plt.plot(range(0, len(toPlot)), toPlot)
 plt.show()
+
+for i in agents:
+	print(sum(i.rewards))
