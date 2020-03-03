@@ -1,3 +1,5 @@
+print('importing required modules')
+
 from matplotlib import pyplot as plt
 from numpy import arange
 from markovSources import SolarPanel, WindTurbine
@@ -30,7 +32,7 @@ class Battery(QLearningAgent):
 		# quantizing local demand to an integer within 1 and 10, i have no idea if this is a good quantization
 		demand = quantize(self.transformerBox.totalDemand, arange(0, 10, 1))
 
-		# if we keep actions so a set that shares a factor we can avoid discretizing charge
+		# if we keep actions to sets that shares a factor we can avoid discretizing charge
 
 		# adds demand and charge to state so that the underlying Q-learning agent can 'see' them
 		state.append(demand)
@@ -44,10 +46,12 @@ class Battery(QLearningAgent):
 
 		# negative action signifies selling electricity
 		if (action < 0) and (-action > self.charge):
+			# if we sell more charge than we have
 			action = -self.charge
 			self.charge += action
 		# I have assumed that the battery's max capacity is 10
 		elif (action + self.charge > 10):
+			# if we buy more charge than we have capacity for
 			action = 10 - self.charge
 
 		return action
@@ -104,7 +108,6 @@ for i in range(0, numBoxes):
 # we will now attach batteries to some of the boxes
 numBatteries = 50
 batteries = []
-
 # we need recursive behavior, so I will write this as a function
 # doing it like this means that the program will crash if the number of batterys exceeds the number of boxes
 def assignBattery(box):
@@ -113,16 +116,15 @@ def assignBattery(box):
 		assignBattery(choice(boxes))
 	else:
 		# the box has no battery
-		# actions are -1 to 1 at intervals of 1
+		# actions are -1 to 1 at intervals of 1, this almost certainly will need to change
 		box.containsAgent = True
 		battery = Battery([-1,0,1], box)
 		batteries.append(battery)
-
 for i in range(0, numBatteries):
 	# assigns a batter to a random box
 	assignBattery(choice(boxes))
 
-# this is something that needs to change
+# this is something that needs to change to a function that at least somewhat mimics reality
 priceOfRetail = 5
 
 # arrays that will be used to plot data at the end of the program, serve no other purpose than this
@@ -137,7 +139,10 @@ print('starting model')
 for day in range(0, 5):
 	print('day: '+str(day))
 
+	# hydro power will try to match the power defecit of the day before, so while
+	#  hydroSchedule is read from in the loop below, hydroTarget will be written to
 	hydroSchedule = hydroTarget
+
 	# clears hydroTarget for the next day
 	hydroTarget = []
 
@@ -174,10 +179,11 @@ for day in range(0, 5):
 		for i in boxes:
 			totalDemand += i.update(t)
 
-		# hydro power matches the difference between totalDemand and power production from all sources except gas
+		# hydro power matches the difference between totalDemand and nuclear power and stochastic producers
 		# and so we must record that difference here
 		hydroTarget.append(totalDemand - totalProduction - 300)
 
+		# adds hydro power to the grid
 		totalProduction += hydroSchedule[t]
 		priceOfProduction += hydroPrice*hydroSchedule[t]
 
@@ -216,7 +222,7 @@ for day in range(0, 5):
 		production.append(totalProduction)
 		prodPrice.append(priceOfProduction)
 
-# the first day is tainted data, as hydroSchedule is not set to anything useful, we will cut it oput of the data
+# the first day is tainted data, as hydroSchedule is not set to anything useful, we will cut it out of the data
 demand = demand[len(T):len(demand)]
 production = production[len(T):len(production)]
 prodPrice = prodPrice[len(T):len(prodPrice)]
