@@ -24,8 +24,9 @@ class Battery(QLearningAgent):
 
 	def __init__(self, actions, transformerBox):
 		self.charge = 0
-		self. transformerBox = transformerBox
+		self.transformerBox = transformerBox
 		
+		# calling the init method of the parent class
 		super(Battery, self).__init__(actions)
 
 	def getAction(self, state):

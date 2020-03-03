@@ -84,13 +84,13 @@ for i in range(0, numAgents):
 	agents.append(Agent(possibleActions))
 
 # the number of cylces each agent will explore before the next agent gets a turn
-explorationDuration = 100
+explorationDuration = 10000
 # keeps track of which agent is exploring
 activeAgentIndex = 0
 activeAgent = agents[activeAgentIndex]
 activeAgent.startExploring()
 
-for i in range(0,10000):
+for i in range(0,50000):
 
 	if (i%explorationDuration == 0):
 		# switch the agent that's exploring
