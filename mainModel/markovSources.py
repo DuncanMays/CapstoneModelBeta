@@ -49,7 +49,7 @@ class MarkovLive:
 		self.x = max(series.iloc[0] + self.std*(2*np.random.random_sample()-1),0)
 
 	def update(self, time):
-		delta = (self.series.iloc[time] - self.x)/self.std
+		delta = (self.series.iloc[(time+1)%24] - self.x)/self.std
 		if delta > 0:
 			if np.random.random_sample() > delta:
 				self.x = max(self.x + np.random.normal(loc=0,scale=delta*self.std+.1),0)
@@ -82,4 +82,16 @@ class WindTurbine(MarkovSource):
 	def __init__(self, meanFunction = lambda x : 30, variance = 16, initialCondition = 30):
 			MarkovSource.__init__(self, meanFunction, variance, initialCondition)
 
+class SolarSource(MarkovLive):
+    def __init__(self):
+        MarkovLive.__init__(self, hourMean['Solar'])
+        
+class WindSource(MarkovLive):
+    def __init__(self):
+        MarkovLive.__init__(self, hourMean['Wind']) 
 
+#https://info.ornl.gov/sites/publications/Files/Pub45942.pdf industry curves
+# https://buildings.lbl.gov/sites/default/files/t_hong_-_electric_load_shape_benchmarking_for_small-_and_medium-sized_commercial_buildings.pdf office and retail curves
+class Industrial(MarkovLive):
+    def __init__(self):
+        MarkovLive.__init__(
