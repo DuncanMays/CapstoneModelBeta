@@ -2,7 +2,7 @@ print('importing required modules')
 
 from matplotlib import pyplot as plt
 from numpy import arange
-from markovSources import SolarPanel, WindTurbine
+from markovSources import House, SolarSource, WindSource
 from transformerBox import TransformerBox
 import math
 from random import randint, choice
@@ -74,10 +74,10 @@ numSolarPanels = 200
 numWindTurbines = 50
 # creates numSolarPanels instances of SolarPanel
 for i in range(0,numSolarPanels):
-	stochasticProducers.append(SolarPanel())
+	stochasticProducers.append(SolarSource())
 # creates numWindTurbines instances of WindTurbine
 for i in range(0,numWindTurbines):
-	stochasticProducers.append(WindTurbine())
+	stochasticProducers.append(WindSource())
 
 # doesn't really matter what hydroTarget is initialized it, it will be updated to
 #  something usefull on the first cyle of the model. So long as whatever it is has the 

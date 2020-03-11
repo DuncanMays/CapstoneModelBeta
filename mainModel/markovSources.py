@@ -92,6 +92,6 @@ class WindSource(MarkovLive):
 
 #https://info.ornl.gov/sites/publications/Files/Pub45942.pdf industry curves
 # https://buildings.lbl.gov/sites/default/files/t_hong_-_electric_load_shape_benchmarking_for_small-_and_medium-sized_commercial_buildings.pdf office and retail curves
-class Industrial(MarkovLive):
-    def __init__(self):
-        MarkovLive.__init__(
+#class Industrial(MarkovLive):
+ #   def __init__(self):
+  #      MarkovLive.__init__(
