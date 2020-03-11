@@ -17,6 +17,7 @@ class MarkovSource:
 		self.variance = variance
 		self.meanFunction = meanFunction
 		self.state = initialCondition
+		self.max = meanFunction(12) + variance
 
 	# This method moves the source from one state to the next.
 	# It is necessary that it takes time as a parameter, it must know the time to know what
@@ -47,6 +48,9 @@ class MarkovLive:
 		self.std = float(series.std())
 		# initialized state
 		self.x = max(series.iloc[0] + self.std*(2*np.random.random_sample()-1),0)
+		# the maximum value we can expect from this source, this is needed so that
+		# a transformer box can create a resonable demand space for its Qlearning agent
+		self.max = max(series) + self.std
 
 	def update(self, time):
 		delta = (self.series.iloc[(time+1)%24] - self.x)/self.std

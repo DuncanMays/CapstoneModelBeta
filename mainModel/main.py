@@ -10,6 +10,20 @@ from QLearningAgent import QLearningAgent
 
 print('setting up')
 
+# this array holds all the times throughout the day that our model will iterate
+# right now I've set it to 15 minute intervals, we should take care in other 
+# parts of the program to allow intervals of other sizes, as we may want to change 
+# this as our Q-learning algorithm evolves.
+# numpy.arange does the same thing as linspace in Matlab
+T = arange(0, 24, 1)
+
+localDemandSpace = np.arange()
+priceOfProductionSpace = np.arange()
+priceOfRetailSpace = np.arange()
+chargeSpace = np.arange()
+actionSpace = np.arange
+
+
 # this method takes a value and returns the closest element of the set it is given
 def quantize(value, targetSet):
 	closestElement = targetSet[0]
@@ -56,13 +70,6 @@ class Battery(QLearningAgent):
 			action = 10 - self.charge
 
 		return action
-
-# this array holds all the times throughout the day that our model will iterate
-# right now I've set it to 15 minute intervals, we should take care in other 
-# parts of the program to allow intervals of other sizes, as we may want to change 
-# this as our Q-learning algorithm evolves.
-# numpy.arange does the same thing as linspace in Matlab
-T = arange(0, 24, 1)
 
 # baseline power production, this will be the amount of electricity produced by nuclear
 # power plants
