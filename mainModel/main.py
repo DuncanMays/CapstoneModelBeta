@@ -17,11 +17,14 @@ print('setting up')
 # numpy.arange does the same thing as linspace in Matlab
 T = arange(0, 24, 1)
 
-localDemandSpace = np.arange()
-priceOfProductionSpace = np.arange()
-priceOfRetailSpace = np.arange()
-chargeSpace = np.arange()
-actionSpace = np.arange
+# dollars per megawatt/hour
+# priceOfProductionSpace = np.arange(0, )
+
+# priceOfRetailSpace = np.arange()
+
+# chargeSpace = np.arange()
+
+# actionSpace = np.arange()
 
 
 # this method takes a value and returns the closest element of the set it is given
@@ -44,8 +47,8 @@ class Battery(QLearningAgent):
 		super(Battery, self).__init__(actions)
 
 	def getAction(self, state):
-		# quantizing local demand to an integer within 1 and 10, i have no idea if this is a good quantization
-		demand = quantize(self.transformerBox.totalDemand, arange(0, 10, 1))
+		# quantizing local demand
+		demand = quantize(self.transformerBox.totalDemand, self.transformerBox.demandSpace)
 
 		# if we keep actions to sets that shares a factor we can avoid discretizing charge
 
@@ -95,12 +98,10 @@ hydroTarget = T
 # the price of production at a given interval, initialized to zero
 priceOfProduction = 0
 
-# the price of production for various methods
-# made these numbers up, we should run some kind of regression on IESO
-# data to get the actual numbers
-nuclearPrice = 0.5
-hydroPrice = 1
-gasPrice = 1.5
+# the price of production for various methods in dollars per dollars / (megawatt/Hours)^2
+nuclearPrice = 0.00032
+hydroPrice = 0.00790
+gasPrice = 0.00975
 # I am assuming that it costs the same amount of money to produce electricity
 # by both wind and solar, this is probably a bad assumption
 renewablePrice = 0.5

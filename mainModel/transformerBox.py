@@ -29,8 +29,9 @@ class TransformerBox:
 				maxDemand += self.sources[i].max
 			else:
 				self.sources.append(Factory())
+				maxDemand += self.sources[i].max
 
-		self.demandSpace = np.arange(0, )
+		self.demandSpace = np.arange(0, maxDemand, demandInterval)
 
 
 	def update(self, time):
