@@ -17,8 +17,8 @@ class TransformerBox:
 		# the transformer box needs to quantize the electrical demand moving through it so that
 		# Qlearning agents can understand it. To do this, we need to know the maximum and 
 		# minimum demand we can expect from the agents.
-		self.maxDemand = 0
-		self.minDemand = 0
+		self.maxLocalDemand = 0
+		self.minLocalDemand = 0
 
 		# interesting bug, if we %1, submitting 1 as the parameter
 		# will result in ratio being 0, so we must %1.01, accepting the small innacuracy
@@ -29,11 +29,11 @@ class TransformerBox:
 			else:
 				self.sources.append(Factory())
 
-			self.maxDemand += self.sources[i].max
-			self.minDemand += self.sources[i].min
+			self.maxLocalDemand += self.sources[i].max
+			self.minLocalDemand += self.sources[i].min
 
-		interval = (self.maxDemand - self.minDemand)/numCells
-		self.demandSpace = np.arange(self.minDemand, self.maxDemand, interval)
+		interval = (self.maxLocalDemand - self.minLocalDemand)/numCells
+		self.demandSpace = np.arange(self.minLocalDemand, self.maxLocalDemand, interval)
 
 
 	def update(self, time):

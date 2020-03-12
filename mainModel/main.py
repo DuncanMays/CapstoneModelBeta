@@ -17,10 +17,18 @@ print('setting up')
 # numpy.arange does the same thing as linspace in Matlab
 T = arange(0, 24, 1)
 
-# dollars per megawatt/hour
-# priceOfProductionSpace = np.arange(0, )
+# the number of values that local demand can take, for the Qlearning agents
+localDemandCells = 5
 
-# priceOfRetailSpace = np.arange()
+# I decided to provide a quantization for global demand in the event we implement post-pricing,
+# most of the intellectual work had to be done to calculate nuclear output anyway.
+globalDemandCells = 5
+
+# the number of values that the retail price of electricity can take, for the Qlearning agents
+retailPriceCells = 5
+
+# the number of values that the production price of electricity can take, for the Qlearning agents
+prodPriceCells = 5
 
 # chargeSpace = np.arange()
 
@@ -74,18 +82,6 @@ class Battery(QLearningAgent):
 
 		return action
 
-solarPanels = []
-numSolarPanels = 20
-# creates numSolarPanels instances of SolarPanel
-for i in range(0,numSolarPanels):
-	solarPanels.append(SolarPanel())
-
-WindTurbines = []
-numWindTurbines = 50
-# creates numWindTurbines instances of WindTurbine
-for i in range(0,numWindTurbines):
-	WindTurbines.append(WindTurbine())
-
 # doesn't really matter what hydroTarget is initialized it, it will be updated to
 #  something usefull on the first cyle of the model. So long as whatever it is has the 
 #  same number of elements as T, the model will work. For this reason i've initialized
@@ -98,6 +94,26 @@ hydroPrice = 0.00790
 gasPrice = 0.00975
 windPrice = -0.00130
 solarPrice = -0.02063
+
+# we will need these to create a quantization for the production price of electricity
+prodPriceMin = 0
+prodPriceMax = 0
+
+solarPanels = []
+numSolarPanels = 20
+# creates numSolarPanels instances of SolarPanel
+for i in range(0,numSolarPanels):
+	solarPanels.append(SolarPanel())
+	prodPriceMin += solarPrice*solarPanels[i].min
+	prodPriceMax += solarPrice*solarPanels[i].max
+
+WindTurbines = []
+numWindTurbines = 50
+# creates numWindTurbines instances of WindTurbine
+for i in range(0,numWindTurbines):
+	WindTurbines.append(WindTurbine())
+	prodPriceMin += windPrice*WindTurbines[i].min
+	prodPriceMax += windPrice*WindTurbines[i].max
 
 # creates the power boxes through which demand will flow and a Qlearning agent will take action
 numBoxes = 500
@@ -120,15 +136,32 @@ def assignBattery(box):
 		# the box has no battery
 		# actions are -1 to 1 at intervals of 1, this almost certainly will need to change
 		box.containsAgent = True
-		battery = Battery([-1,0,1], box)
+		battery = Battery([-1,0,1], box, numCells = localDemandCells)
 		batteries.append(battery)
+
 for i in range(0, numBatteries):
 	# assigns a batter to a random box
 	assignBattery(choice(boxes))
 
+# we now create the space in which global demand will live in, we will not
+# use it right now but we very well might when we implement post-procing.
+# we do this by first determining the range that demand can take values in
+minGlobalDemand = sum([boxes[i].minLocalDemand for i in range(0, len(boxes))])
+maxGlobalDemand = sum([boxes[i].maxLocalDemand for i in range(0, len(boxes))])
+
+# we then quantize this range by the number of demand cells we want
+interval = (minGlobalDemand - maxGlobalDemand)/globalDemandCells
+globalDemandSpace = np.arange(minGlobalDemand, maxGlobalDemand, interval)
+
 # baseline power production, this will be the amount of electricity produced by nuclear
 # power plants
-baseline = sum([boxes[i].minDemand for i in range(0, len(boxes))])
+baseline = minGlobalDemand
+
+prodPriceMin += nuclearPrice*baseline
+prodPriceMax += nuclearPrice*baseline
+
+# to determine min and max production values for hydro power we need min and max global power,
+# as well as the min and max production for each source
 
 # this is something that needs to change to a function that at least somewhat mimics reality
 priceOfRetail = 5

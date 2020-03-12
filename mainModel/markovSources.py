@@ -75,10 +75,9 @@ class House(MarkovLive):
 	def __init__(self):
 		MarkovLive.__init__(self, hourMean['Ontario']/10000)
 
-class Factory(MarkovSource):
-	# factories have fairly low variance, but high average consumption
-	def __init__(self, meanFunction = lambda x : 100, variance = 1, initialCondition = 100):
-		MarkovSource.__init__(self, meanFunction, variance, initialCondition)
+class Factory(MarkovLive):
+	def __init__(self):
+		MarkovLive.__init__(self, hourMean['Industrial']/10)
 
 class SolarPanel(MarkovLive):
     def __init__(self):
