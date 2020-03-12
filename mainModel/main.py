@@ -194,7 +194,25 @@ interval = (prodPriceMax - prodPriceMin)/prodPriceCells
 prodPriceSpace = arange(prodPriceMax, prodPriceMax, interval)
 
 # this is something that needs to change to a function that at least somewhat mimics reality
-priceOfRetail = 5
+def retailprice(time):
+    if 0<= time < 7:
+        #Off peak rates, 6.5¢/kWh, 6.5¢ / 100(¢/$) * 1000 kWh/MWh = 65$/MWh
+        priceOfRetail = 65 
+    elif 7 <= time < 11:
+        #Mid peak rates, 9.4¢/kWh, 9.4¢ / 100(¢/$) * 1000 kWh/MWh = 94$/MWh
+        priceOfRetail = 94
+    elif 11 <= time < 17:
+        #On peak rates, 13.4¢/kWh, 13.4¢ / 100(¢/$) * 1000 kWh/MWh = 134$/MWh
+        priceOfRetail = 134
+    elif 17 <= time < 19:
+        #Mid peak rates, 9.4¢/kWh, 9.4¢ / 100(¢/$) * 1000 kWh/MWh = 94$/MWh
+        priceOfRetail = 94
+    elif 19 <= time <= 24:
+        #Off peak rates, 6.5¢/kWh, 6.5¢ / 100(¢/$) * 1000 kWh/MWh = 65$/MWh
+        priceOfRetail = 65
+    
+    return priceOfRetail
+
 
 # the price of production at a given interval, initialized to zero
 priceOfProduction = 0
