@@ -28,7 +28,7 @@ globalDemandSpace = []
 
 # the number of values that the retail price of electricity can take, for the Qlearning agents
 retailPriceCells = 5
-retailPriceSpace = []
+retailPriceSpace = [1,2,3]
 
 # the number of values that the production price of electricity can take, for the Qlearning agents
 prodPriceCells = 5
@@ -75,13 +75,11 @@ class Battery(QLearningAgent):
 
 		prodPrice = quantize(priceOfProduction, prodPriceSpace)
 
-		retailPrice = quantize(priceOfRetail, retail)
+		retailPrice = quantize(priceOfRetail, retailPriceSpace)
 
-		# if we keep actions to sets that shares a factor we can avoid discretizing charge
+		time = quantize(time, T)
 
-		# adds demand and charge to state so that the underlying Q-learning agent can 'see' them
-		state.append(demand)
-		state.append(self.charge)
+		state = [time, prodPrice, retailPrice, localDemand, charge]
 
 		action = super(Battery, self).getAction(state)
 
