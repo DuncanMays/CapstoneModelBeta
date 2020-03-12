@@ -19,21 +19,33 @@ T = arange(0, 24, 1)
 
 # the number of values that local demand can take, for the Qlearning agents
 localDemandCells = 5
+# local demand space will be given by the individual boxes
 
 # I decided to provide a quantization for global demand in the event we implement post-pricing,
 # most of the intellectual work had to be done to calculate nuclear output anyway.
 globalDemandCells = 5
+globalDemandSpace = []
 
 # the number of values that the retail price of electricity can take, for the Qlearning agents
 retailPriceCells = 5
+retailPriceSpace = []
 
 # the number of values that the production price of electricity can take, for the Qlearning agents
 prodPriceCells = 5
+prodPriceSpace = []
 
-# chargeSpace = np.arange()
+numChargeCells = 5
+chargeSpace = []
 
-# actionSpace = np.arange()
+# this is the first example of a pattern that repeats itself a bunch of times,
+# we determine a maximum vlaue a quantity can take, and a minimum quatnity. and then we form a 
+# quantization with a given number of cells in that range. In this case we are quantizint the
+# battery's charge. This needs to happen before we define the batter class below.
+minCharge = 0
+maxCharge = 15
 
+interval = (maxCharge - minCharge)/numChargeCells
+chargeSpace = arange(minCharge, maxCharge, interval)
 
 # this method takes a value and returns the closest element of the set it is given
 def quantize(value, targetSet):
@@ -54,9 +66,16 @@ class Battery(QLearningAgent):
 		# calling the init method of the parent class
 		super(Battery, self).__init__(actions)
 
-	def getAction(self, state):
-		# quantizing local demand
-		demand = quantize(self.transformerBox.totalDemand, self.transformerBox.demandSpace)
+	def getAction(self, priceOfProduction, priceOfRetail, time):
+		# quantizing local demand, pulling totalDemand from the box will only work if get action
+		# is called after update is called on the box.
+		localDemand = quantize(self.transformerBox.totalDemand, self.transformerBox.demandSpace)
+
+		charge = quantize(self.charge, chargeSpace)
+
+		prodPrice = quantize(priceOfProduction, prodPriceSpace)
+
+		retailPrice = quantize(priceOfRetail, retail)
 
 		# if we keep actions to sets that shares a factor we can avoid discretizing charge
 
@@ -75,8 +94,7 @@ class Battery(QLearningAgent):
 			# if we sell more charge than we have
 			action = -self.charge
 			self.charge += action
-		# I have assumed that the battery's max capacity is 10
-		elif (action + self.charge > 10):
+		elif (action + self.charge > maxCharge):
 			# if we buy more charge than we have capacity for
 			action = 10 - self.charge
 
@@ -121,7 +139,7 @@ boxes = []
 for i in range(0, numBoxes):
 	# the first parameter is the number of total demand agents the box will service
 	# the second parameter is the ratio between the number of houses and the number of factories served.
-	boxes.append(TransformerBox(randint(20, 50), 0.9))
+	boxes.append(TransformerBox(randint(20, 50), 0.9, numCells = localDemandCells))
 
 # we will now attach batteries to some of the boxes
 numBatteries = 50
@@ -136,7 +154,7 @@ def assignBattery(box):
 		# the box has no battery
 		# actions are -1 to 1 at intervals of 1, this almost certainly will need to change
 		box.containsAgent = True
-		battery = Battery([-1,0,1], box, numCells = localDemandCells)
+		battery = Battery([-1,0,1], box)
 		batteries.append(battery)
 
 for i in range(0, numBatteries):
@@ -151,7 +169,7 @@ maxGlobalDemand = sum([boxes[i].maxLocalDemand for i in range(0, len(boxes))])
 
 # we then quantize this range by the number of demand cells we want
 interval = (minGlobalDemand - maxGlobalDemand)/globalDemandCells
-globalDemandSpace = np.arange(minGlobalDemand, maxGlobalDemand, interval)
+globalDemandSpace = arange(minGlobalDemand, maxGlobalDemand, interval)
 
 # baseline power production, this will be the amount of electricity produced by nuclear
 # power plants
@@ -162,6 +180,20 @@ prodPriceMax += nuclearPrice*baseline
 
 # to determine min and max production values for hydro power we need min and max global power,
 # as well as the min and max production for each source
+maxGlobalProd = baseline + sum(solarPanels[i].max for i in range(0,len(solarPanels))) + sum(WindTurbines[i].max for i in range(0,len(WindTurbines)))
+minGlobalProd = baseline + sum(solarPanels[i].min for i in range(0,len(solarPanels))) + sum(WindTurbines[i].min for i in range(0,len(WindTurbines)))
+
+# if I was really concerned with this, I'd make it max - min, but i am not very concerned with
+# this as the maxima and minima of sources usually happen at the same time, and doing so might
+# cause the quantization to be a poor approximation.
+maxHydro = maxGlobalDemand - maxGlobalProd
+minHydro = minGlobalDemand - minGlobalProd
+
+prodPriceMin += hydroPrice*minHydro
+prodPriceMax += hydroPrice*maxHydro
+
+interval = (prodPriceMax - prodPriceMin)/prodPriceCells
+prodPriceSpace = arange(prodPriceMax, prodPriceMax, interval)
 
 # this is something that needs to change to a function that at least somewhat mimics reality
 priceOfRetail = 5
@@ -257,7 +289,7 @@ for day in range(0, 3):
 		# get agents actions from time, price of retail, price of production
 		# the local demand, as well as the battery's capacity, will be added to state within the battery class.
 		for j in batteries:
-			actions.append(j.getAction([t, priceOfRetail, quantize(priceOfProduction, arange(35000, 40000, 500))]))
+			pass
 
 		# calculate reward the reward for each agent
 		for j in range(0, len(batteries)):
