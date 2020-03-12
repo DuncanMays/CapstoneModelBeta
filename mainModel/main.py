@@ -66,7 +66,7 @@ class Battery(QLearningAgent):
 		# calling the init method of the parent class
 		super(Battery, self).__init__(actions)
 
-	def getAction(self, priceOfProduction, priceOfRetail, time):
+	def chooseAction(self, priceOfProduction, priceOfRetail, time):
 		# quantizing local demand, pulling totalDemand from the box will only work if get action
 		# is called after update is called on the box.
 		localDemand = quantize(self.transformerBox.totalDemand, self.transformerBox.demandSpace)
@@ -191,7 +191,8 @@ prodPriceMin += hydroPrice*minHydro
 prodPriceMax += hydroPrice*maxHydro
 
 interval = (prodPriceMax - prodPriceMin)/prodPriceCells
-prodPriceSpace = arange(prodPriceMax, prodPriceMax, interval)
+
+prodPriceSpace = arange(prodPriceMin, prodPriceMax, interval)
 
 # this is something that needs to change to a function that at least somewhat mimics reality
 def retailprice(time):
@@ -212,6 +213,8 @@ def retailprice(time):
         priceOfRetail = 65
     
     return priceOfRetail
+
+retailPriceSpace = [65, 94, 134]
 
 
 # the price of production at a given interval, initialized to zero
@@ -242,6 +245,7 @@ for day in range(0, 3):
 		totalProduction = 0
 		totalDemand = 0
 		priceOfProduction = 0
+		priceOfRetail = retailprice(t)
 
 		# production  from uncontrolled sources must be added to the grid first, 
 		#  as all other variables (demand, production from controlled sources like 
@@ -305,14 +309,14 @@ for day in range(0, 3):
 		# get agents actions from time, price of retail, price of production
 		# the local demand, as well as the battery's capacity, will be added to state within the battery class.
 		for j in batteries:
-			pass
+			actions.append(j.chooseAction(priceOfProduction, priceOfRetail, t))
 
 		# calculate reward the reward for each agent
 		for j in range(0, len(batteries)):
 			action = actions[j]
 			if action < 0:
 				# the agent sold
-				batteries[j].giveReward(-priceOfRetail*action)
+				batteries[j].giveReward(priceOfRetail*action)
 			else:
 				# the agent bought
 				batteries[j].giveReward(priceOfProduction*action)
