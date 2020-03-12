@@ -17,7 +17,9 @@ class MarkovSource:
 		self.variance = variance
 		self.meanFunction = meanFunction
 		self.state = initialCondition
+		# I have assumes that peak value will be at noon, and the minimum output will be at midnight
 		self.max = meanFunction(12) + variance
+		self.min = meanFunction(0) - variance
 
 	# This method moves the source from one state to the next.
 	# It is necessary that it takes time as a parameter, it must know the time to know what
@@ -51,6 +53,8 @@ class MarkovLive:
 		# the maximum value we can expect from this source, this is needed so that
 		# a transformer box can create a resonable demand space for its Qlearning agent
 		self.max = max(series) + self.std
+		# likewise for the minimum value
+		self.min = min(series) - self.std
 
 	def update(self, time):
 		delta = (self.series.iloc[(time+1)%24] - self.x)/self.std
@@ -76,21 +80,11 @@ class Factory(MarkovSource):
 	def __init__(self, meanFunction = lambda x : 100, variance = 1, initialCondition = 100):
 		MarkovSource.__init__(self, meanFunction, variance, initialCondition)
 
-class SolarPanel(MarkovSource):
-	# the mean function for solar panels looks like a lump in the middle of the day, with relatively high variance
-	def __init__(self, meanFunction = lambda x : 10/(1+((x-12)**2)/5), variance = 10, initialCondition = 0):
-			MarkovSource.__init__(self, meanFunction, variance, initialCondition)
-
-class WindTurbine(MarkovSource):
-	# the mean function for wind farms is constant, with very high variance
-	def __init__(self, meanFunction = lambda x : 30, variance = 16, initialCondition = 30):
-			MarkovSource.__init__(self, meanFunction, variance, initialCondition)
-
-class SolarSource(MarkovLive):
+class SolarPanel(MarkovLive):
     def __init__(self):
         MarkovLive.__init__(self, hourMean['Solar'])
         
-class WindSource(MarkovLive):
+class WindTurbine(MarkovLive):
     def __init__(self):
         MarkovLive.__init__(self, hourMean['Wind']) 
 

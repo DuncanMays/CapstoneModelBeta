@@ -2,7 +2,7 @@ print('importing required modules')
 
 from matplotlib import pyplot as plt
 from numpy import arange
-from markovSources import House, SolarSource, WindSource
+from markovSources import House, SolarPanel, WindTurbine
 from transformerBox import TransformerBox
 import math
 from random import randint, choice
@@ -74,20 +74,17 @@ class Battery(QLearningAgent):
 
 		return action
 
-# baseline power production, this will be the amount of electricity produced by nuclear
-# power plants
-baseline = 3500
-
-# This array holds the producers that produce in a stochastic manner
-stochasticProducers = []
-numSolarPanels = 200
-numWindTurbines = 50
+solarPanels = []
+numSolarPanels = 20
 # creates numSolarPanels instances of SolarPanel
 for i in range(0,numSolarPanels):
-	stochasticProducers.append(SolarSource())
+	solarPanels.append(SolarPanel())
+
+WindTurbines = []
+numWindTurbines = 50
 # creates numWindTurbines instances of WindTurbine
 for i in range(0,numWindTurbines):
-	stochasticProducers.append(WindSource())
+	WindTurbines.append(WindTurbine())
 
 # doesn't really matter what hydroTarget is initialized it, it will be updated to
 #  something usefull on the first cyle of the model. So long as whatever it is has the 
@@ -95,19 +92,15 @@ for i in range(0,numWindTurbines):
 #  it to T
 hydroTarget = T
 
-# the price of production at a given interval, initialized to zero
-priceOfProduction = 0
-
 # the price of production for various methods in dollars per dollars / (megawatt/Hours)^2
 nuclearPrice = 0.00032
 hydroPrice = 0.00790
 gasPrice = 0.00975
-# I am assuming that it costs the same amount of money to produce electricity
-# by both wind and solar, this is probably a bad assumption
-renewablePrice = 0.5
+windPrice = -0.00130
+solarPrice = -0.02063
 
 # creates the power boxes through which demand will flow and a Qlearning agent will take action
-numBoxes = 100
+numBoxes = 500
 boxes = []
 for i in range(0, numBoxes):
 	# the first parameter is the number of total demand agents the box will service
@@ -133,8 +126,15 @@ for i in range(0, numBatteries):
 	# assigns a batter to a random box
 	assignBattery(choice(boxes))
 
+# baseline power production, this will be the amount of electricity produced by nuclear
+# power plants
+baseline = sum([boxes[i].minDemand for i in range(0, len(boxes))])
+
 # this is something that needs to change to a function that at least somewhat mimics reality
 priceOfRetail = 5
+
+# the price of production at a given interval, initialized to zero
+priceOfProduction = 0
 
 # arrays that will be used to plot data at the end of the program, serve no other purpose than this
 demand = []
@@ -145,7 +145,7 @@ print('starting model')
 
 # main program loop
 # each iteration of this loop represents one day in the model
-for day in range(0, 5):
+for day in range(0, 3):
 	print('day: '+str(day))
 
 	# hydro power will try to match the power defecit of the day before, so while
@@ -171,11 +171,17 @@ for day in range(0, 5):
 		totalProduction += baseline
 		priceOfProduction += nuclearPrice*baseline
 
-		# production from solar panels and wind turbines is added to the grid
-		for producer in stochasticProducers:
-			renewableProduction = producer.update(t)
-			totalProduction += renewableProduction
-			priceOfProduction += renewablePrice*renewableProduction
+		# production from solar panels is added to the grid
+		for panel in solarPanels:
+			temp = panel.update(t)
+			totalProduction += temp
+			priceOfProduction += solarPrice*temp
+
+		# production from wind turbines is also added to the grid
+		for turbine in WindTurbines:
+			temp = turbine.update(t)
+			totalProduction += temp
+			priceOfProduction += windPrice*temp
 
 		# consumption must happen before any Q learning agents take action, and
 		#  before hydro and gas, as this will determine the electricity defecit,
@@ -190,7 +196,11 @@ for day in range(0, 5):
 
 		# hydro power matches the difference between totalDemand and nuclear power and stochastic producers
 		# and so we must record that difference here
-		hydroTarget.append(totalDemand - totalProduction - 300)
+		diff = totalDemand - totalProduction
+		if (diff < 0):
+			# checks to make sure hydro production cant be negative
+			diff = 0
+		hydroTarget.append(diff)
 
 		# adds hydro power to the grid
 		totalProduction += hydroSchedule[t]
@@ -238,7 +248,11 @@ prodPrice = prodPrice[len(T):len(prodPrice)]
 
 # plots everything all nice and pretty
 x = range(0, len(demand))
-plt.plot(x, demand)
-plt.plot(x, production)
-plt.plot(x,prodPrice)
+dmdHandle = plt.plot(x, demand)
+prdHandle = plt.plot(x, production)
+# plt.plot(x, prodPrice)
+# plt.legend(handles=[dmdHandle, prdHandle])
 plt.show()
+
+
+
