@@ -18,20 +18,20 @@ print('setting up')
 T = arange(0, 24, 8)
 
 # the number of values that local demand can take, for the Qlearning agents
-localDemandCells = 3
+localDemandCells = 5
 # local demand space will be given by the individual boxes
 
 # I decided to provide a quantization for global demand in the event we implement post-pricing,
 # most of the intellectual work had to be done to calculate nuclear output anyway.
-globalDemandCells = 3
+globalDemandCells = 5
 globalDemandSpace = []
 
 # the number of values that the retail price of electricity can take, for the Qlearning agents
-retailPriceCells = 3
+retailPriceCells = 5
 retailPriceSpace = []
 
 # the number of values that the production price of electricity can take, for the Qlearning agents
-prodPriceCells = 5
+prodPriceCells = 8
 prodPriceSpace = []
 
 numChargeCells = 3
@@ -160,7 +160,7 @@ for i in range(0, numBoxes):
 	boxes.append(TransformerBox(randint(20, 50), 0.9, numCells = localDemandCells))
 
 # we will now attach batteries to some of the boxes
-numBatteries = 50
+numBatteries = 500
 batteries = []
 # we need recursive behavior, so I will write this as a function
 # doing it like this means that the program will crash if the number of batterys exceeds the number of boxes
@@ -259,7 +259,7 @@ print('starting model')
 
 # main program loop
 # each iteration of this loop represents one day in the model
-for day in range(0, 1000):
+for day in range(0, 2000):
 	print('day: '+str(day))
 
 	# hydro power will try to match the power defecit of the day before, so while
