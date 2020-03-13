@@ -109,6 +109,9 @@ class Battery(QLearningAgent):
 
 	def giveReward(self, reward):
 
+		# the proffits are so tiny I worry they won't change the Q table enough
+		reward = reward*10
+
 		self.rewards.append(reward)
 		self.profit += reward
 
@@ -374,19 +377,29 @@ production = production[len(T):len(production)]
 prodPrice = prodPrice[len(T):len(prodPrice)]
 retailPrice = retailPrice[len(T):len(retailPrice)]
 
+print('forming results')
+num = 10
+toPlot = []
+numIterations = len(gasProd)-num
+for i in range(0, numIterations):
+	sum = 0
+	for j in range(i,i+num):
+		sum += gasProd[j]
+	toPlot.append(sum/num)
+
+
 # plots everything all nice and pretty
-x = range(0, len(demand))
+# x = range(0, len(demand))
 # plt.plot(x, demand)
 # plt.plot(x, production)
 # plt.plot(x, prodPrice)
 # plt.plot(x, retailPrice)
 # plt.legend(handles=[dmdHandle, prdHandle])
 # plt.plot(range(0, len(batteries[0].rewards)), batteries[0].rewards)
-plt.plot(range(0, len(gasProd)), gasProd)
+plt.plot(range(0, len(toPlot)), toPlot)
 plt.show()
 
 for i in batteries:
 	print(i.profit)
-
 
 
