@@ -52,9 +52,9 @@ class MarkovLive:
 		self.x = max(series.iloc[0] + self.std*(2*np.random.random_sample()-1),0)
 		# the maximum value we can expect from this source, this is needed so that
 		# a transformer box can create a resonable demand space for its Qlearning agent
-		self.max = max(series) + self.std
+		self.max = max(series)
 		# likewise for the minimum value
-		self.min = min(series) - self.std
+		self.min = min(series)
 
 
 	def update(self, time):

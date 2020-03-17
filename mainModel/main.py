@@ -126,16 +126,14 @@ class Battery(QLearningAgent):
 #  something usefull on the first cyle of the model. So long as whatever it is has the 
 #  same number of elements as T, the model will work. For this reason i've initialized
 #  it to T
-hydroTarget = {T[i]: T[i] for i in range(0, len(T))}
+hydroTarget = {T[i]: 0 for i in range(0, len(T))}
 
 # the price of production for various methods in dollars per dollars / (megawatt/Hours)^2
 nuclearPrice = 0.00032
 hydroPrice = 0.00790
 gasPrice = 0.00975
-# windPrice = -0.00130
-windPrice = 0
-# solarPrice = -0.02063
-solarPrice = 0
+windPrice = -0.00130
+solarPrice = -0.02063
 
 # we will need these to create a quantization for the production price of electricity
 prodPriceMin = 0
@@ -149,9 +147,6 @@ for i in range(0,numSolarPanels):
 	prodPriceMin += solarPrice*solarPanels[i].min
 	prodPriceMax += solarPrice*solarPanels[i].max
 
-# print(solarPanels[0].max)
-print(solarPanels[0].min)
-
 WindTurbines = []
 numWindTurbines = 50
 # creates numWindTurbines instances of WindTurbine
@@ -160,9 +155,7 @@ for i in range(0,numWindTurbines):
 	prodPriceMin += windPrice*WindTurbines[i].min
 	prodPriceMax += windPrice*WindTurbines[i].max
 
-# print(windPrice*WindTurbines[0].max)
-# print(windPrice*WindTurbines[0].min)
-
+# prodPrice min and max will take hydro power into account when the hydro schedule is set below in the loop
 
 # creates the power boxes through which demand will flow and a Qlearning agent will take action
 numBoxes = 500
@@ -354,30 +347,31 @@ for day in range(0, 5):
 
 		# right now, price of production is the total price to produce all the electricity in the system, so we must divide
 		# it by the amount of electricity in the system to get the price per MWh
-		priceOfProduction = priceOfProduction/totalProduction
+		priceOfProduction = priceOfProduction/totalProduction 
 
-		# get agents actions from time, price of retail, price of production
-		# the local demand, as well as the battery's capacity, will be added to state within the battery class.
-		for j in batteries:
-			action = j.chooseAction(priceOfProduction, priceOfRetail, t)
-			actions.append(action)
+		if (day != 0):
+			# get agents actions from time, price of retail, price of production
+			# the local demand, as well as the battery's capacity, will be added to state within the battery class.
+			for j in batteries:
+				action = j.chooseAction(priceOfProduction, priceOfRetail, t)
+				actions.append(action)
 
-			if action > 0:
-				# if the agent bought
-				totalDemand += action
-			elif action < 0:
-				# if the agent sold
-				totalProduction -= action
+				if action > 0:
+					# if the agent bought
+					totalDemand += action
+				elif action < 0:
+					# if the agent sold
+					totalProduction -= action
 
-		# calculate reward the reward for each agent
-		for j in range(0, len(batteries)):
-			action = actions[j]
-			if action < 0:
-				# the agent sold
-				batteries[j].giveReward(priceOfRetail*action)
-			else:
-				# the agent bought
-				batteries[j].giveReward(priceOfProduction*action)
+			# calculate reward the reward for each agent
+			for j in range(0, len(batteries)):
+				action = actions[j]
+				if action < 0:
+					# the agent sold
+					batteries[j].giveReward(priceOfRetail*action)
+				else:
+					# the agent bought
+					batteries[j].giveReward(priceOfProduction*action)
 
 		# these lines only serve to make plots below
 		demand.append(totalDemand)
@@ -385,38 +379,50 @@ for day in range(0, 5):
 		prodPrice.append(priceOfProduction)
 		retailPrice.append(priceOfRetail)
 
+	if(day == 0):
+
+		# finds the max and min hydro production values
+		max = hydroTarget[0]
+		min = hydroTarget[0]
+		for i in hydroTarget:
+			if (hydroTarget[i] > max):
+				max = hydroTarget[i]
+
+			elif (hydroTarget[i] < min):
+				min = hydroTarget[i]
+
+		maxGlobalProd += max
+		minGlobalProd += min
+
+		prodPriceMax += hydroPrice*max
+		prodPriceMin += hydroPrice*min
+
+		prodPriceMax = prodPriceMax/maxGlobalProd
+		prodPriceMin = prodPriceMin/minGlobalProd
+
+		interval = (prodPriceMax - prodPriceMin)/prodPriceCells
+		prodPriceSpace = arange(prodPriceMin, prodPriceMax, interval)
+
 # the first day is tainted data, as hydroSchedule is not set to anything useful, we will cut it out of the data
 demand = demand[len(T):len(demand)]
 production = production[len(T):len(production)]
 prodPrice = prodPrice[len(T):len(prodPrice)]
 retailPrice = retailPrice[len(T):len(retailPrice)]
 
-# print('forming results')
-# num = 10
-# toPlot = []
-# numIterations = len(gasProd)-num
-# for i in range(0, numIterations):
-# 	sum = 0
-# 	for j in range(i,i+num):
-# 		sum += gasProd[j]
-# 	toPlot.append(sum/num)
-
-toPlot = prodPrice
-toPlot2 = batteries[0].toPlot
-
-
 # plots everything all nice and pretty
-# x = range(0, len(demand))
+x = range(0, len(demand))
 # plt.plot(x, demand)
+# plt.plot(x, [maxGlobalDemand for i in range(0, len(x))])
+# plt.plot(x, [minGlobalDemand for i in range(0, len(x))])
 # plt.plot(x, production)
+# plt.plot(x, [maxGlobalProd for i in range(0, len(x))])
+# plt.plot(x, [minGlobalProd for i in range(0, len(x))])
 # plt.plot(x, prodPrice)
+# plt.plot(x, batteries[0].toPlot)
+# plt.plot(x, [prodPriceMax for i in range(0, len(x))])
+# plt.plot(x, [prodPriceMin for i in range(0, len(x))])
 # plt.plot(x, retailPrice)
-# plt.legend(handles=[dmdHandle, prdHandle])
 # plt.plot(range(0, len(batteries[0].rewards)), batteries[0].rewards)
-plt.plot(range(0, len(toPlot)), toPlot)
-plt.plot(range(0, len(toPlot2)), toPlot2)
-plt.plot(range(0, len(toPlot)), [prodPriceMin for i in range(0, len(toPlot))])
-plt.plot(range(0, len(toPlot)), [prodPriceMax for i in range(0, len(toPlot))])
 plt.show()
 
 # for i in batteries:
