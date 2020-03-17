@@ -7,6 +7,7 @@ from transformerBox import TransformerBox
 import math
 from random import randint, choice
 from QLearningAgent import QLearningAgent
+from copy import copy
 
 print('setting up')
 
@@ -15,7 +16,7 @@ print('setting up')
 # parts of the program to allow intervals of other sizes, as we may want to change 
 # this as our Q-learning algorithm evolves.
 # numpy.arange does the same thing as linspace in Matlab
-T = arange(0, 24, 4)
+T = arange(0, 24, 6)
 
 # the number of values that local demand can take, for the Qlearning agents
 localDemandCells = 5
@@ -34,7 +35,7 @@ retailPriceSpace = []
 prodPriceCells = 5
 prodPriceSpace = []
 
-numChargeCells = 3
+numChargeCells = 5
 chargeSpace = []
 
 actionSpace = [-1,0,1]
@@ -57,6 +58,15 @@ def quantize(value, targetSet):
 			closestElement = i
 
 	return closestElement
+
+def deepCopy(obj):
+	obj = copy(obj)
+	if isinstance(obj, dict):
+		for i in obj:
+			obj[i] = deepCopy(obj[i])
+	
+	return obj
+
 
 # this class represents batterys in our model
 class Battery(QLearningAgent):
@@ -121,6 +131,28 @@ class Battery(QLearningAgent):
 
 		super(Battery, self).giveReward(reward)
 
+	# this stops the agent from learning any more, effectively freezing their policy
+	def freeze(self):
+		self.exploration = 0
+		self.changeAlpha(self.Q, 0.000000001)
+
+	def rejuvenate(self):
+		self.exploration = 0.1
+		self.changeAlpha(self.Q, 1)
+
+	def changeAlpha(self, q, alpha):
+		if(('type' in q) and (q['type'] == 'leaf')):
+			# this block will execute if q is a leaf
+			# iterates accross the actions to change all the alpha values
+			for i in self.actions:
+				q[i]['alpha'] = alpha
+
+		else:
+			# this block will execute if q is a node in the Qtree
+			for i in q:
+				# recursively calls changeAlpha on all branches off of q
+				self.changeAlpha(q[i], alpha)
+
 
 # doesn't really matter what hydroTarget is initialized it, it will be updated to
 #  something usefull on the first cyle of the model. So long as whatever it is has the 
@@ -166,7 +198,7 @@ for i in range(0, numBoxes):
 	boxes.append(TransformerBox(randint(20, 50), 0.9, numCells = localDemandCells))
 
 # we will now attach batteries to some of the boxes
-numBatteries = 300
+numBatteries = 200
 batteries = []
 # we need recursive behavior, so I will write this as a function
 # doing it like this means that the program will crash if the number of batterys exceeds the number of boxes
@@ -229,23 +261,23 @@ def retailprice(time):
     if 0<= time < 7:
         #Off peak rates, 6.5¢/kWh, 6.5¢ / 100(¢/$) * 1000 kWh/MWh = 65$/MWh
         # priceOfRetail = 65
-        priceOfRetail = 0.0015
+        priceOfRetail = 0.0005
     elif 7 <= time < 11:
         #Mid peak rates, 9.4¢/kWh, 9.4¢ / 100(¢/$) * 1000 kWh/MWh = 94$/MWh
         # priceOfRetail = 94
-        priceOfRetail = 0.0025
+        priceOfRetail = 0.0015
     elif 11 <= time < 17:
         #On peak rates, 13.4¢/kWh, 13.4¢ / 100(¢/$) * 1000 kWh/MWh = 134$/MWh
         # priceOfRetail = 134
-        priceOfRetail = 0.0030
+        priceOfRetail = 0.0025
     elif 17 <= time < 19:
         #Mid peak rates, 9.4¢/kWh, 9.4¢ / 100(¢/$) * 1000 kWh/MWh = 94$/MWh
         # priceOfRetail = 94
-        priceOfRetail = 0.0025
+        priceOfRetail = 0.0015
     elif 19 <= time <= 24:
         #Off peak rates, 6.5¢/kWh, 6.5¢ / 100(¢/$) * 1000 kWh/MWh = 65$/MWh
         # priceOfRetail = 65
-        priceOfRetail = 0.0015
+        priceOfRetail = 0.0005
     
     return priceOfRetail
 
@@ -261,12 +293,15 @@ production = []
 prodPrice = []
 retailPrice = []
 gasProd = []
+avgActions = []
 
 print('starting model')
 
+oldQ = {}
+
 # main program loop
 # each iteration of this loop represents one day in the model
-for day in range(0, 5):
+for day in range(0, 4000):
 	print('day: '+str(day))
 
 	# hydro power will try to match the power defecit of the day before, so while
@@ -276,11 +311,15 @@ for day in range(0, 5):
 	# clears hydroTarget for the next day
 	hydroTarget = {}
 
+	# the figures for the consumption and production of all the Q learning agents
+	Qdemand = 0
+	Qsupply = 0
+
 	# each iteration in this loop represents one time interval (not a full day)
 	for t in T:
 		# resets these variables to zero
-		totalProduction = 0
-		totalDemand = 0
+		totalProduction = Qsupply
+		totalDemand = Qdemand
 		priceOfProduction = 0
 		priceOfRetail = retailprice(t)
 
@@ -373,6 +412,11 @@ for day in range(0, 5):
 					# the agent bought
 					batteries[j].giveReward(priceOfProduction*action)
 
+			# records the average action of all of the agents for diagnostics
+			avgActions.append((sum(actions)/len(actions))/500)
+
+
+
 		# these lines only serve to make plots below
 		demand.append(totalDemand)
 		production.append(totalProduction)
@@ -400,17 +444,28 @@ for day in range(0, 5):
 		prodPriceMax = prodPriceMax/maxGlobalProd
 		prodPriceMin = prodPriceMin/minGlobalProd
 
+		# sets up the quantization for prodPrice
 		interval = (prodPriceMax - prodPriceMin)/prodPriceCells
 		prodPriceSpace = arange(prodPriceMin, prodPriceMax, interval)
 
-# the first day is tainted data, as hydroSchedule is not set to anything useful, we will cut it out of the data
-demand = demand[len(T):len(demand)]
-production = production[len(T):len(production)]
-prodPrice = prodPrice[len(T):len(prodPrice)]
-retailPrice = retailPrice[len(T):len(retailPrice)]
+	# if (day == 3000):
+	# 	print('freezing all agents but one')
+
+	# 	batteries[0].rejuvenate()
+
+	# 	oldQ = deepCopy(batteries[0].Q)
+
+	# 	for i in range(1, len(batteries)):
+	# 		batteries[i].freeze()
+
+# the first day is tainted data as it is a callibration day, we will cut it out of the data
+# demand = demand[len(T):len(demand)]
+# production = production[len(T):len(production)]
+# prodPrice = prodPrice[len(T):len(prodPrice)]
+# retailPrice = retailPrice[len(T):len(retailPrice)]
 
 # plots everything all nice and pretty
-x = range(0, len(demand))
+# x = range(0, len(demand))
 # plt.plot(x, demand)
 # plt.plot(x, [maxGlobalDemand for i in range(0, len(x))])
 # plt.plot(x, [minGlobalDemand for i in range(0, len(x))])
@@ -418,14 +473,90 @@ x = range(0, len(demand))
 # plt.plot(x, [maxGlobalProd for i in range(0, len(x))])
 # plt.plot(x, [minGlobalProd for i in range(0, len(x))])
 # plt.plot(x, prodPrice)
-# plt.plot(x, batteries[0].toPlot)
 # plt.plot(x, [prodPriceMax for i in range(0, len(x))])
 # plt.plot(x, [prodPriceMin for i in range(0, len(x))])
 # plt.plot(x, retailPrice)
-# plt.plot(range(0, len(batteries[0].rewards)), batteries[0].rewards)
+# plt.plot(x, batteries[0].toPlot)
+# plt.plot(x, avgActions)
+# plt.plot(x, avgActions)
+
+# plt.show()
+
+# # we need recursive behavior to explore the Q tree, so I'm defining this as a function
+# # we need to:
+# 	# get the average value of all expected rewards in all leaves of both trees
+# 	# get the average difference between the expected values in all leaves of both trees
+# sum1 = 0
+# sum2 = 0
+# diff = 0
+# num = 0
+# def calcValues(q1, q2):
+# 	global sum1
+# 	global sum2
+# 	global diff
+# 	global num
+
+# 	if(('type' in q1) and (q1['type'] == 'leaf')):
+# 		# this block will execute if q is a leaf
+# 		# iterates accross the actions to change all the alpha values
+# 		for i in actionSpace:
+# 			sum1 += abs(q1[i]['reward'])
+# 			sum2 += abs(q2[i]['reward'])
+# 			diff += abs(q1[i]['reward'] - q2[i]['reward'])
+
+# 	else:
+# 		# this block will execute if q is a node in the Qtree
+# 		for i in q1:
+# 			calcValues(q1[i], q2[i])
+# 			num += 1
+
+# newQ = batteries[0].Q
+
+# calcValues(oldQ, newQ)
+
+# print('avg value of 1')
+# print(sum1/num)
+# print('avg value of 2')
+# print(sum2/num)
+# print('avg diff')
+# print(diff/num)
+
+# # we will now only plot the last n days
+# n = 5
+
+# length = n*len(T)
+
+# x = range(0, length)
+
+# prodPriceTilde = prodPrice[(len(prodPrice)-length):]
+# retailPriceTilde = retailPrice[(len(retailPrice)-length):]
+# avgActionsTilde = avgActions[(len(avgActions)-length):]
+
+# plt.plot(x, prodPriceTilde)
+# plt.plot(x, retailPriceTilde)
+
+# plt.show()
+
+print()
+print('forming results')
+sampleInterval = 50
+toPlot = []
+numIterations = len(gasProd)-sampleInterval
+for i in range(0, numIterations):
+	sum = 0
+	for j in range(i,i+sampleInterval):
+		sum += gasProd[j]
+	toPlot.append(sum/sampleInterval)
+
+	# prints progress, WILL NOT WORK WITH PYTHON2
+	# erases the last output
+	print('\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b', end = '')
+	# produces new output
+	print(' %'+str(100*i/numIterations), end = '')
+
+# adds new line
+print()
+
+x = range(0, len(toPlot))
+plt.plot(x, toPlot)
 plt.show()
-
-# for i in batteries:
-# 	print(i.profit)
-
-
