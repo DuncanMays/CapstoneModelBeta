@@ -15,10 +15,10 @@ class TransformerBox:
 		self.totalDemand = 0
 
 		# the transformer box needs to quantize the electrical demand moving through it so that
-		# Qlearning agents can understand it. To do this, we need to know the maximum demand, as
-		# well as have some kind of interval to quantize things with.
-		demandInterval = 10
-		maxDemand = 0
+		# Qlearning agents can understand it. To do this, we need to know the maximum and 
+		# minimum demand we can expect from the agents.
+		self.maxLocalDemand = 0
+		self.minLocalDemand = 0
 
 		# interesting bug, if we %1, submitting 1 as the parameter
 		# will result in ratio being 0, so we must %1.01, accepting the small innacuracy
@@ -26,12 +26,14 @@ class TransformerBox:
 		for i in range(0, numSources):
 			if (random() < ratio):
 				self.sources.append(House())
-				maxDemand += self.sources[i].max
 			else:
 				self.sources.append(Factory())
-				maxDemand += self.sources[i].max
 
-		self.demandSpace = np.arange(0, maxDemand, demandInterval)
+			self.maxLocalDemand += self.sources[i].max
+			self.minLocalDemand += self.sources[i].min
+
+		interval = (self.maxLocalDemand - self.minLocalDemand)/numCells
+		self.demandSpace = np.arange(self.minLocalDemand, self.maxLocalDemand, interval)
 
 
 	def update(self, time):
