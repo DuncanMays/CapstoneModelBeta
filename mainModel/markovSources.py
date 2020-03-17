@@ -56,6 +56,7 @@ class MarkovLive:
 		# likewise for the minimum value
 		self.min = min(series) - self.std
 
+
 	def update(self, time):
 		delta = (self.series.iloc[(time+1)%24] - self.x)/self.std
 		if delta > 0:

@@ -15,7 +15,7 @@ print('setting up')
 # parts of the program to allow intervals of other sizes, as we may want to change 
 # this as our Q-learning algorithm evolves.
 # numpy.arange does the same thing as linspace in Matlab
-T = arange(0, 24, 8)
+T = arange(0, 24, 4)
 
 # the number of values that local demand can take, for the Qlearning agents
 localDemandCells = 5
@@ -31,7 +31,7 @@ retailPriceCells = 5
 retailPriceSpace = []
 
 # the number of values that the production price of electricity can take, for the Qlearning agents
-prodPriceCells = 8
+prodPriceCells = 5
 prodPriceSpace = []
 
 numChargeCells = 3
@@ -69,6 +69,8 @@ class Battery(QLearningAgent):
 		self.rewards = []
 		self.profit = 0
 
+		self.toPlot = []
+
 		# calling the init method of the parent class
 		super(Battery, self).__init__(actions)
 
@@ -88,6 +90,8 @@ class Battery(QLearningAgent):
 		state = [time, prodPrice, retailPrice, localDemand, charge]
 
 		action = super(Battery, self).getAction(state)
+
+		self.toPlot.append(prodPrice)
 
 		# we now must check to make sure that the action makes sense
 		# if we sell, have we sold more than the battery's charge?
@@ -128,8 +132,10 @@ hydroTarget = {T[i]: T[i] for i in range(0, len(T))}
 nuclearPrice = 0.00032
 hydroPrice = 0.00790
 gasPrice = 0.00975
-windPrice = -0.00130
-solarPrice = -0.02063
+# windPrice = -0.00130
+windPrice = 0
+# solarPrice = -0.02063
+solarPrice = 0
 
 # we will need these to create a quantization for the production price of electricity
 prodPriceMin = 0
@@ -143,6 +149,9 @@ for i in range(0,numSolarPanels):
 	prodPriceMin += solarPrice*solarPanels[i].min
 	prodPriceMax += solarPrice*solarPanels[i].max
 
+# print(solarPanels[0].max)
+print(solarPanels[0].min)
+
 WindTurbines = []
 numWindTurbines = 50
 # creates numWindTurbines instances of WindTurbine
@@ -150,6 +159,10 @@ for i in range(0,numWindTurbines):
 	WindTurbines.append(WindTurbine())
 	prodPriceMin += windPrice*WindTurbines[i].min
 	prodPriceMax += windPrice*WindTurbines[i].max
+
+# print(windPrice*WindTurbines[0].max)
+# print(windPrice*WindTurbines[0].min)
+
 
 # creates the power boxes through which demand will flow and a Qlearning agent will take action
 numBoxes = 500
@@ -160,7 +173,7 @@ for i in range(0, numBoxes):
 	boxes.append(TransformerBox(randint(20, 50), 0.9, numCells = localDemandCells))
 
 # we will now attach batteries to some of the boxes
-numBatteries = 500
+numBatteries = 300
 batteries = []
 # we need recursive behavior, so I will write this as a function
 # doing it like this means that the program will crash if the number of batterys exceeds the number of boxes
@@ -204,8 +217,9 @@ minGlobalProd = baseline + sum(solarPanels[i].min for i in range(0,len(solarPane
 # if I was really concerned with this, I'd make it max - min, but i am not very concerned with
 # this as the maxima and minima of sources usually happen at the same time, and doing so might
 # cause the quantization to be a poor approximation.
-maxHydro = maxGlobalDemand - maxGlobalProd
-minHydro = minGlobalDemand - minGlobalProd
+maxHydro = 0
+# really just minGlobalDemand - baseline, but baseline = minGlobalDemand
+minHydro = 0
 
 prodPriceMin += hydroPrice*minHydro
 prodPriceMax += hydroPrice*maxHydro
@@ -221,23 +235,23 @@ prodPriceSpace = arange(prodPriceMin, prodPriceMax, interval)
 def retailprice(time):
     if 0<= time < 7:
         #Off peak rates, 6.5¢/kWh, 6.5¢ / 100(¢/$) * 1000 kWh/MWh = 65$/MWh
-        priceOfRetail = 65
+        # priceOfRetail = 65
         priceOfRetail = 0.0015
     elif 7 <= time < 11:
         #Mid peak rates, 9.4¢/kWh, 9.4¢ / 100(¢/$) * 1000 kWh/MWh = 94$/MWh
-        priceOfRetail = 94
+        # priceOfRetail = 94
         priceOfRetail = 0.0025
     elif 11 <= time < 17:
         #On peak rates, 13.4¢/kWh, 13.4¢ / 100(¢/$) * 1000 kWh/MWh = 134$/MWh
-        priceOfRetail = 134
+        # priceOfRetail = 134
         priceOfRetail = 0.0030
     elif 17 <= time < 19:
         #Mid peak rates, 9.4¢/kWh, 9.4¢ / 100(¢/$) * 1000 kWh/MWh = 94$/MWh
-        priceOfRetail = 94
+        # priceOfRetail = 94
         priceOfRetail = 0.0025
     elif 19 <= time <= 24:
         #Off peak rates, 6.5¢/kWh, 6.5¢ / 100(¢/$) * 1000 kWh/MWh = 65$/MWh
-        priceOfRetail = 65
+        # priceOfRetail = 65
         priceOfRetail = 0.0015
     
     return priceOfRetail
@@ -259,7 +273,7 @@ print('starting model')
 
 # main program loop
 # each iteration of this loop represents one day in the model
-for day in range(0, 2000):
+for day in range(0, 5):
 	print('day: '+str(day))
 
 	# hydro power will try to match the power defecit of the day before, so while
@@ -377,15 +391,18 @@ production = production[len(T):len(production)]
 prodPrice = prodPrice[len(T):len(prodPrice)]
 retailPrice = retailPrice[len(T):len(retailPrice)]
 
-print('forming results')
-num = 10
-toPlot = []
-numIterations = len(gasProd)-num
-for i in range(0, numIterations):
-	sum = 0
-	for j in range(i,i+num):
-		sum += gasProd[j]
-	toPlot.append(sum/num)
+# print('forming results')
+# num = 10
+# toPlot = []
+# numIterations = len(gasProd)-num
+# for i in range(0, numIterations):
+# 	sum = 0
+# 	for j in range(i,i+num):
+# 		sum += gasProd[j]
+# 	toPlot.append(sum/num)
+
+toPlot = prodPrice
+toPlot2 = batteries[0].toPlot
 
 
 # plots everything all nice and pretty
@@ -397,9 +414,12 @@ for i in range(0, numIterations):
 # plt.legend(handles=[dmdHandle, prdHandle])
 # plt.plot(range(0, len(batteries[0].rewards)), batteries[0].rewards)
 plt.plot(range(0, len(toPlot)), toPlot)
+plt.plot(range(0, len(toPlot2)), toPlot2)
+plt.plot(range(0, len(toPlot)), [prodPriceMin for i in range(0, len(toPlot))])
+plt.plot(range(0, len(toPlot)), [prodPriceMax for i in range(0, len(toPlot))])
 plt.show()
 
-for i in batteries:
-	print(i.profit)
+# for i in batteries:
+# 	print(i.profit)
 
 
