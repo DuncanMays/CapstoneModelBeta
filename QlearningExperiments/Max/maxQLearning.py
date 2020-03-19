@@ -102,7 +102,7 @@ class QLearningAgent:
 		self.state_current = new_state
 
 	# update policy
-	def updatePolicy(self, q):
+	def updatePolicy(self, q, state=[]):
 		# if q is a leaf
 		if 'type' in q and q['type'] == 'leaf':
 
@@ -128,4 +128,4 @@ class QLearningAgent:
 		else:
 			for i in q:
 				# recursively call updatePolicy on all branches off of q
-				self.updatePolicy(q[i])
+				self.updatePolicy(q[i], state.append(i))
