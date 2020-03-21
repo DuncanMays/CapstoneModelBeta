@@ -44,10 +44,13 @@ class MarkovLive:
 	'''
 	series is the data that the source will emulate
 	'''
-	def __init__(self, series):
+	def __init__(self, series, std = None):
 		self.series = series
-		# calculates the standard deviation
-		self.std = float(series.std())
+		if (std):
+			self.std = std
+		else:
+			# calculates the standard deviation
+			self.std = float(series.std())
 		# initialized state
 		self.x = max(series.iloc[0] + self.std*(2*np.random.random_sample()-1),0)
 		# the maximum value we can expect from this source, this is needed so that
@@ -86,7 +89,7 @@ class SolarPanel(MarkovLive):
         
 class WindTurbine(MarkovLive):
     def __init__(self):
-        MarkovLive.__init__(self, hourMean['Wind']) 
+        MarkovLive.__init__(self, hourMean['Wind'], std=100000) 
 
 #https://info.ornl.gov/sites/publications/Files/Pub45942.pdf industry curves
 # https://buildings.lbl.gov/sites/default/files/t_hong_-_electric_load_shape_benchmarking_for_small-_and_medium-sized_commercial_buildings.pdf office and retail curves

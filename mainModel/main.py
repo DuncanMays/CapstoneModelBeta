@@ -5,7 +5,7 @@ from numpy import arange
 from markovSources import House, SolarPanel, WindTurbine
 from transformerBox import TransformerBox
 import math
-from random import randint, choice
+from random import randint, choice, shuffle
 from QLearningAgent import QLearningAgent
 from copy import copy
 
@@ -16,7 +16,7 @@ print('setting up')
 # parts of the program to allow intervals of other sizes, as we may want to change 
 # this as our Q-learning algorithm evolves.
 # numpy.arange does the same thing as linspace in Matlab
-T = arange(0, 24, 6)
+T = arange(0, 24, 2)
 
 # the number of values that local demand can take, for the Qlearning agents
 localDemandCells = 5
@@ -38,14 +38,14 @@ prodPriceSpace = []
 numChargeCells = 5
 chargeSpace = []
 
-actionSpace = [-1,0,1]
+actionSpace = [-500,0,500]
 
 # this is the first example of a pattern that repeats itself a bunch of times,
 # we determine a maximum vlaue a quantity can take, and a minimum quatnity. and then we form a 
 # quantization with a given number of cells in that range. In this case we are quantizint the
 # battery's charge. This needs to happen before we define the batter class below.
 minCharge = 0
-maxCharge = 15
+maxCharge = 15000
 
 interval = (maxCharge - minCharge)/numChargeCells
 chargeSpace = arange(minCharge, maxCharge, interval)
@@ -84,14 +84,14 @@ class Battery(QLearningAgent):
 		# calling the init method of the parent class
 		super(Battery, self).__init__(actions)
 
-	def chooseAction(self, priceOfProduction, priceOfRetail, time):
+	def chooseAction(self, totalCostProduction, priceOfRetail, time):
 		# quantizing local demand, pulling totalDemand from the box will only work if get action
 		# is called after update is called on the box.
 		localDemand = quantize(self.transformerBox.totalDemand, self.transformerBox.demandSpace)
 
 		charge = quantize(self.charge, chargeSpace)
 
-		prodPrice = quantize(priceOfProduction, prodPriceSpace)
+		prodPrice = quantize(totalCostProduction, prodPriceSpace)
 
 		retailPrice = quantize(priceOfRetail, retailPriceSpace)
 
@@ -153,6 +153,11 @@ class Battery(QLearningAgent):
 				# recursively calls changeAlpha on all branches off of q
 				self.changeAlpha(q[i], alpha)
 
+# represents gas furnaces, not a lot of complexity, only needed as a way 
+#  to distinguish from things like Qlearning agents or demand sources.
+class GasFurnace():
+	def __init__(self, maxOutput):
+		self.maxOutput = maxOutput
 
 # doesn't really matter what hydroTarget is initialized it, it will be updated to
 #  something usefull on the first cyle of the model. So long as whatever it is has the 
@@ -172,7 +177,7 @@ prodPriceMin = 0
 prodPriceMax = 0
 
 solarPanels = []
-numSolarPanels = 20
+numSolarPanels = 200
 # creates numSolarPanels instances of SolarPanel
 for i in range(0,numSolarPanels):
 	solarPanels.append(SolarPanel())
@@ -180,7 +185,7 @@ for i in range(0,numSolarPanels):
 	prodPriceMax += solarPrice*solarPanels[i].max
 
 WindTurbines = []
-numWindTurbines = 50
+numWindTurbines = 30
 # creates numWindTurbines instances of WindTurbine
 for i in range(0,numWindTurbines):
 	WindTurbines.append(WindTurbine())
@@ -190,32 +195,28 @@ for i in range(0,numWindTurbines):
 # prodPrice min and max will take hydro power into account when the hydro schedule is set below in the loop
 
 # creates the power boxes through which demand will flow and a Qlearning agent will take action
-numBoxes = 500
+numBoxes = 650
 boxes = []
 for i in range(0, numBoxes):
 	# the first parameter is the number of total demand agents the box will service
 	# the second parameter is the ratio between the number of houses and the number of factories served.
 	boxes.append(TransformerBox(randint(20, 50), 0.9, numCells = localDemandCells))
 
-# we will now attach batteries to some of the boxes
-numBatteries = 200
-batteries = []
-# we need recursive behavior, so I will write this as a function
-# doing it like this means that the program will crash if the number of batterys exceeds the number of boxes
-def assignBattery(box):
-	if (box.containsAgent):
-		# the box already has a battery, meaning we must try again
-		assignBattery(choice(boxes))
-	else:
-		# the box has no battery
-		# actions are -1 to 1 at intervals of 1, this almost certainly will need to change
-		box.containsAgent = True
-		battery = Battery(actionSpace, box)
-		batteries.append(battery)
+# shuffles them into a random order
+shuffle(boxes)
 
+# we will now attach batteries to some of the boxes, not that the boxes are in random order so the 
+#  batteries will be assigned randomly
+numBatteries = 200
+
+if(numBatteries > len(boxes)):
+	print('we cant have more batteries than boxes')
+
+batteries = []
 for i in range(0, numBatteries):
-	# assigns a batter to a random box
-	assignBattery(choice(boxes))
+	boxes[i].containsAgent = True
+	batteries.append(Battery(actionSpace, boxes[i]))
+
 
 # we now create the space in which global demand will live in, we will not
 # use it right now but we very well might when we implement post-procing.
@@ -283,9 +284,15 @@ def retailprice(time):
 
 retailPriceSpace = [65, 94, 134]
 
+# we now will create an array of gas furnaces
+numFurnaces = 10
+maxOutput = 20000
+furnaces = []
+for i in range(0, numFurnaces):
+	furnaces.append(GasFurnace(maxOutput))
 
 # the price of production at a given interval, initialized to zero
-priceOfProduction = 0
+totalCostProduction = 0
 
 # arrays that will be used to plot data at the end of the program, serve no other purpose than this
 demand = []
@@ -294,33 +301,29 @@ prodPrice = []
 retailPrice = []
 gasProd = []
 avgActions = []
+solarProduction = []
+windProduction = []
 
 print('starting model')
 
-oldQ = {}
-
 # main program loop
 # each iteration of this loop represents one day in the model
-for day in range(0, 4000):
+for day in range(0, 10):
 	print('day: '+str(day))
 
 	# hydro power will try to match the power defecit of the day before, so while
 	#  hydroSchedule is read from in the loop below, hydroTarget will be written to
-	hydroSchedule = hydroTarget
+	hydroSchedule = copy(hydroTarget)
 
 	# clears hydroTarget for the next day
 	hydroTarget = {}
 
-	# the figures for the consumption and production of all the Q learning agents
-	Qdemand = 0
-	Qsupply = 0
-
 	# each iteration in this loop represents one time interval (not a full day)
 	for t in T:
 		# resets these variables to zero
-		totalProduction = Qsupply
-		totalDemand = Qdemand
-		priceOfProduction = 0
+		totalProduction = 0
+		totalDemand = 0
+		totalCostProduction = 0
 		priceOfRetail = retailprice(t)
 
 		# production  from uncontrolled sources must be added to the grid first, 
@@ -328,21 +331,29 @@ for day in range(0, 4000):
 		#  hydro and gas, as well as discharge from batteries) are determined using it.
 
 		# production from nuclear plants is added to the grid, 
-		# with necessary adjustments to priceOfProduction
+		# with necessary adjustments to totalCostProduction
 		totalProduction += baseline
-		priceOfProduction += nuclearPrice*baseline
+		totalCostProduction += nuclearPrice*baseline
 
 		# production from solar panels is added to the grid
+		total = 0
 		for panel in solarPanels:
 			temp = panel.update(t)
 			totalProduction += temp
-			priceOfProduction += solarPrice*temp
+			totalCostProduction += solarPrice*temp
+			total += temp
+
+		solarProduction.append(total)
 
 		# production from wind turbines is also added to the grid
+		total = 0
 		for turbine in WindTurbines:
 			temp = turbine.update(t)
 			totalProduction += temp
-			priceOfProduction += windPrice*temp
+			totalCostProduction += windPrice*temp
+			total += temp
+
+		windProduction.append(total)
 
 		# consumption must happen before any Q learning agents take action, and
 		#  before hydro and gas, as this will determine the electricity defecit,
@@ -357,7 +368,7 @@ for day in range(0, 4000):
 
 		# hydro power matches the difference between totalDemand and nuclear power and stochastic producers
 		# and so we must record that difference here
-		diff = totalDemand - totalProduction
+		diff = totalDemand - totalProduction - 1000
 		if (diff < 0):
 			# checks to make sure hydro production cant be negative
 			diff = 0
@@ -365,81 +376,72 @@ for day in range(0, 4000):
 
 		# adds hydro power to the grid
 		totalProduction += hydroSchedule[t]
-		priceOfProduction += hydroPrice*hydroSchedule[t]
+		totalCostProduction += hydroPrice*hydroSchedule[t]
 
-		# production from gas-fired plants is added to the grid
-		gasProduction = 0
-		if(totalDemand > totalProduction):
-			gasProduction = totalDemand - totalProduction
-			totalProduction += gasProduction
-			priceOfProduction += gasPrice*gasProduction
-		gasProd.append(gasProduction)
+		actionItems = []
 
-		# we do Qlearning last. I had a bit of a dillemma on the order in which to implement this. Qlearning agents
-		#  need to know the price of production, which is determined by global demand, which is determined by the 
-		#  actions of Qlearning agents. What I've decided to do is push supply and demand from Qlearning agents into
-		#  the next timestep. This means that whatever electricity an agent buys or sells will be drawn from or 
-		#  pushed to the grid in the next timestep. These values are stored in the variables Qdemand and Qsupply.
-		Qdemand = 0
-		Qsupply = 0
-		actions = []
+		actionItems += furnaces
+		actionItems += batteries
 
-		# right now, price of production is the total price to produce all the electricity in the system, so we must divide
-		# it by the amount of electricity in the system to get the price per MWh
-		priceOfProduction = priceOfProduction/totalProduction 
+		shuffle(actionItems)
 
-		if (day != 0):
-			# get agents actions from time, price of retail, price of production
-			# the local demand, as well as the battery's capacity, will be added to state within the battery class.
-			for j in batteries:
-				action = j.chooseAction(priceOfProduction, priceOfRetail, t)
-				actions.append(action)
+		gasSum = 0
+		actionSum = 0
+		for source in actionItems:
+			if isinstance(source, Battery):
+				priceOfProduction = totalCostProduction/totalProduction
 
+				action = source.chooseAction(priceOfProduction, priceOfRetail, t)
+
+				reward = 0
 				if action > 0:
 					# if the agent bought
 					totalDemand += action
+					reward = -totalCostProduction*action
 				elif action < 0:
 					# if the agent sold
 					totalProduction -= action
+					reward = -priceOfRetail*action
 
-			# calculate reward the reward for each agent
-			for j in range(0, len(batteries)):
-				action = actions[j]
-				if action < 0:
-					# the agent sold
-					batteries[j].giveReward(priceOfRetail*action)
-				else:
-					# the agent bought
-					batteries[j].giveReward(priceOfProduction*action)
+				source.giveReward(reward)
+				actionSum += action
 
-			# records the average action of all of the agents for diagnostics
-			avgActions.append((sum(actions)/len(actions))/500)
+			elif isinstance(source, GasFurnace):
+				gasProduction = min(source.maxOutput, totalDemand - totalProduction)
+				gasProduction = max(gasProduction, 0)
+				totalProduction += gasProduction
+				totalCostProduction += gasPrice*gasProduction
+				gasSum += gasProduction
+			else:
+				print('this should not happen')
+				print(source)
 
-
+		gasProd.append(gasSum)
+		avgActions.append(actionSum)
 
 		# these lines only serve to make plots below
 		demand.append(totalDemand)
 		production.append(totalProduction)
-		prodPrice.append(priceOfProduction)
+		prodPrice.append(totalCostProduction)
 		retailPrice.append(priceOfRetail)
 
 	if(day == 0):
 
 		# finds the max and min hydro production values
-		max = hydroTarget[0]
-		min = hydroTarget[0]
+		maxHydro = hydroTarget[0]
+		minHydro = hydroTarget[0]
 		for i in hydroTarget:
-			if (hydroTarget[i] > max):
-				max = hydroTarget[i]
+			if (hydroTarget[i] > maxHydro):
+				maxHydro = hydroTarget[i]
 
-			elif (hydroTarget[i] < min):
-				min = hydroTarget[i]
+			elif (hydroTarget[i] < minHydro):
+				minHydro = hydroTarget[i]
 
-		maxGlobalProd += max
-		minGlobalProd += min
+		maxGlobalProd += maxHydro
+		minGlobalProd += minHydro
 
-		prodPriceMax += hydroPrice*max
-		prodPriceMin += hydroPrice*min
+		prodPriceMax += hydroPrice*maxHydro
+		prodPriceMin += hydroPrice*minHydro
 
 		prodPriceMax = prodPriceMax/maxGlobalProd
 		prodPriceMin = prodPriceMin/minGlobalProd
@@ -461,15 +463,29 @@ for day in range(0, 4000):
 # the first day is tainted data as it is a callibration day, we will cut it out of the data
 # demand = demand[len(T):len(demand)]
 # production = production[len(T):len(production)]
-# prodPrice = prodPrice[len(T):len(prodPrice)]
-# retailPrice = retailPrice[len(T):len(retailPrice)]
+# # prodPrice = prodPrice[len(T):len(prodPrice)]
+# # retailPrice = retailPrice[len(T):len(retailPrice)]
+# solarProduction = solarProduction[len(T):len(solarProduction)]
+# windProduction = windProduction[len(T):len(windProduction)]
+# gasProd = gasProd[len(T):len(gasProd)]
+# avgActions = avgActions[len(T):len(avgActions)]
+
+numDaysInView = 5
+demand = demand[(len(demand)-numDaysInView*len(T)):len(demand)]
+production = production[(len(production)-numDaysInView*len(T)):len(production)]
+prodPrice = prodPrice[(len(prodPrice)-numDaysInView*len(T)):len(prodPrice)]
+retailPrice = retailPrice[(len(retailPrice)-numDaysInView*len(T)):len(retailPrice)]
+solarProduction = solarProduction[(len(solarProduction)-numDaysInView*len(T)):len(solarProduction)]
+windProduction = windProduction[(len(windProduction)-numDaysInView*len(T)):len(windProduction)]
+gasProd = gasProd[(len(gasProd)-numDaysInView*len(T)):len(gasProd)]
+avgActions = avgActions[(len(avgActions)-numDaysInView*len(T)):len(avgActions)]
 
 # plots everything all nice and pretty
-# x = range(0, len(demand))
-# plt.plot(x, demand)
+x = range(0, len(demand))
+plt.plot(x, demand, label="demand")
 # plt.plot(x, [maxGlobalDemand for i in range(0, len(x))])
 # plt.plot(x, [minGlobalDemand for i in range(0, len(x))])
-# plt.plot(x, production)
+plt.plot(x, production, label="supply")
 # plt.plot(x, [maxGlobalProd for i in range(0, len(x))])
 # plt.plot(x, [minGlobalProd for i in range(0, len(x))])
 # plt.plot(x, prodPrice)
@@ -479,11 +495,16 @@ for day in range(0, 4000):
 # plt.plot(x, batteries[0].toPlot)
 # plt.plot(x, avgActions)
 # plt.plot(x, avgActions)
+# plt.plot(x, solarProduction, label="solar")
+# plt.plot(x, windProduction, label="wind")
+plt.plot(x, gasProd, label="gas")
+plt.plot(x, avgActions, label="agent's output")
 
-# plt.show()
+plt.legend()
+plt.show()
 
 # # we need recursive behavior to explore the Q tree, so I'm defining this as a function
-# # we need to:
+# we need to:
 # 	# get the average value of all expected rewards in all leaves of both trees
 # 	# get the average difference between the expected values in all leaves of both trees
 # sum1 = 0
@@ -537,26 +558,26 @@ for day in range(0, 4000):
 
 # plt.show()
 
-print()
-print('forming results')
-sampleInterval = 50
-toPlot = []
-numIterations = len(gasProd)-sampleInterval
-for i in range(0, numIterations):
-	sum = 0
-	for j in range(i,i+sampleInterval):
-		sum += gasProd[j]
-	toPlot.append(sum/sampleInterval)
+# print()
+# print('forming results')
+# sampleInterval = 50
+# toPlot = []
+# numIterations = len(gasProd)-sampleInterval
+# for i in range(0, numIterations):
+# 	sum = 0
+# 	for j in range(i,i+sampleInterval):
+# 		sum += gasProd[j]
+# 	toPlot.append(sum/sampleInterval)
 
-	# prints progress, WILL NOT WORK WITH PYTHON2
-	# erases the last output
-	print('\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b', end = '')
-	# produces new output
-	print(' %'+str(100*i/numIterations), end = '')
+# 	# prints progress, WILL NOT WORK WITH PYTHON2
+# 	# erases the last output
+# 	print('\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b', end = '')
+# 	# produces new output
+# 	print(' %'+str(100*i/numIterations), end = '')
 
-# adds new line
-print()
+# # adds new line
+# print()
 
-x = range(0, len(toPlot))
-plt.plot(x, toPlot)
-plt.show()
+# x = range(0, len(toPlot))
+# plt.plot(x, toPlot)
+# plt.show()
