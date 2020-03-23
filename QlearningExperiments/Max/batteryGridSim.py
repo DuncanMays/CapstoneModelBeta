@@ -9,7 +9,7 @@ time_step = 1
 time = np.arange(0, 24, time_step)
 localDemand = np.arange(0, 3)
 priceOfProduction = np.arange(0, 3) * time_step
-charge = np.arange(0, 5) - 2
+charge = np.arange(0, 3)
 
 priceOfRetail = [0.065, 0.094, 0.132] * time_step
 
@@ -31,6 +31,47 @@ class QLearningAgent(QLearningAgent):
 
             return action
 
+    def updatePolicy(self, q, state=None):
+        if state is None:
+            state = []
+
+        # if q is a leaf
+        if 'type' in q and q['type'] == 'leaf':
+
+            optimalAction = self.actions[0]
+            for i in self.actions:
+                # checks if i has a greater expected reward than the optimal
+                #  action, if it does, set optimalAction to i
+                if q[i]['Q'] < q[optimalAction]['Q']:
+                    optimalAction = i
+
+            # this set will hold the actions that have expected reward within
+            #  self.delta of the optimal action
+            A = []
+            for i in self.actions:
+                if q[i]['Q'] < q[optimalAction]['Q'] + self.delta:
+                    A.append(i)
+
+            # sets the policy for the state this leaf corresponds to to a random
+            #  element from A
+            q['policy'] = np.random.choice(A)
+
+            if state != ['bootstrap']:
+                if state[-1] + q['policy'] < 0:
+                    q['policy'] = -1 * state[-1]
+
+                # no pulling more than difference between current charge and max
+                elif state[-1] + q['policy'] > charge[-1]:
+                    q['policy'] = charge[-1] - state[-1]
+
+        # otherwise
+        else:
+            for i in q:
+                # recursively call updatePolicy on all branches off of q
+                tmp = state
+                tmp.append(i)
+                self.updatePolicy(q[i], tmp)
+
 
 agents = []
 n_agents = 5
@@ -50,7 +91,7 @@ elif 6 < time[timeIndex] < 19:
 else:
     priceOfRetailIndex = 0
 
-numIterations = 30000
+numIterations = 300000
 for i in range(numIterations):
 
     actions = []
@@ -90,10 +131,11 @@ for i in range(numIterations):
                  charge[chargeIndex[j]]]
         agents[j].updateQ(costs[j], state)
 
-    # update policies every 1000 time steps
-    if (i + 1) % 1000 == 0:
+    # update policies every 10000 time steps
+    if (i + 1) % 10000 == 0:
         for j in range(n_agents):
             agents[j].updatePolicy(agents[j].Q)
 
+# for debugging
 while 1:
     a = 0
