@@ -1,38 +1,40 @@
 from markovSources import SolarPanel
-from time import perf_counter, sleep
-import concurrent.futures
+from time import perf_counter
+from multiprocessing import Pool
 
-start = perf_counter()
+# we will attempt to update a bunch of solar panels both in parallel and in sequence to see which is faster
 
-numPanels = 100
+numSolarPanels = 200
+
 solarPanels = []
-solarOutputs = []
-totalOutput = 0
-for i in range(0,numPanels):
-	solarOutputs.append(0)
+for i in range(0, numSolarPanels):
 	solarPanels.append(SolarPanel())
 
-# for panel in solarPanels:
-# 	totalOutput += panel.update(0)
+# in sequence:
 
-# with futures.ProcessPoolExecutor as executor:
-# 	results = [executor.sumbit(panel.update[0]) for panel in solarPanels]
+no_mp_start = perf_counter()
 
-# 	for output in futures.as_completed(results):
-# 		print(output)
+total = 0
+for panel in solarPanels:
+	total += panel.update(1)
 
-def do_something(secs):
-	sleep(secs)
-	return secs
+no_mp_end = perf_counter()
+no_mp_time = no_mp_end - no_mp_start
+print("time for one iteration without multiprocessing: "+str(no_mp_time))
 
-with concurrent.futures.ProcessPoolExecutor as executor:
-	secs = [5,4,3,2,1]
-	results = [executor.sumbit(do_something, sec) for sec in seconds]
+# in parallel:
 
-	# for f in concurrent.futures.as_completed(results):
-	# 	print(f.result())
+def do_thing(panel):
+	return panel.update(1)
 
-print(totalOutput)
+mp_start = perf_counter()
 
-end = perf_counter()
-print(end - start)
+pool = Pool()
+result = pool.map(do_thing, solarPanels)
+pool.close()
+pool.join()
+sum(result)
+
+mp_end = perf_counter()
+mp_time = mp_end - mp_start
+print("time for one iteration with multiprocessing: "+str(mp_time))
