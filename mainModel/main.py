@@ -308,7 +308,7 @@ print('starting model')
 
 # main program loop
 # each iteration of this loop represents one day in the model
-for day in range(0, 10):
+for day in range(0, 4000):
 	print('day: '+str(day))
 
 	# hydro power will try to match the power defecit of the day before, so while

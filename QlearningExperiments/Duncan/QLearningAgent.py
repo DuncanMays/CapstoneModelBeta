@@ -2,6 +2,7 @@
 
 from random import uniform, choice
 import yaml
+from math import floor
 
 '''
 This class will use Q learning to maximize the reward it recieves
@@ -81,6 +82,9 @@ class QLearningAgent:
 			for i in self.actions:
 				# randomly initializes the expected reward, the alpha factor is initialized to one
 				q[i] = {'reward':uniform(-1, 1), 'alpha':1}
+
+			# this indicates that the dict is indeed a leaf, rather than just another node in the Qtree
+			q['type'] = 'leaf'
 
 			return q
 

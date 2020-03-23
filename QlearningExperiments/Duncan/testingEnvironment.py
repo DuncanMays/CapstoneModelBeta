@@ -1,5 +1,5 @@
 from random import normalvariate, randint
-from QLearningAgent import QLearningAgent
+from QLearningAgent import QLearningAgent, DeepQLearningAgent
 from matplotlib import pyplot as plt
 from numpy import arange
 
@@ -13,7 +13,7 @@ priceOfProduction = arange(-5, 5, 1)
 priceOfRetail = arange(-5, 5, 1)
 charge = arange(-3, 3, 1)
 
-agent = QLearningAgent(actions)
+agent = DeepQLearningAgent(actions)
 
 # this list will hold the reward the agent recieves at each timestep, it will be used to plot the agent's performance
 performance = []
