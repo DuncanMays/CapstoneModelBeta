@@ -102,7 +102,10 @@ class QLearningAgent:
 		self.state_current = new_state
 
 	# update policy
-	def updatePolicy(self, q, state=[]):
+	def updatePolicy(self, q, state=None):
+		if state is None:
+			state = []
+
 		# if q is a leaf
 		if 'type' in q and q['type'] == 'leaf':
 
