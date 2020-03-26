@@ -2,6 +2,7 @@ print('importing required modules')
 
 from matplotlib import pyplot as plt
 from numpy import arange
+import numpy as np
 from markovSources import House, SolarPanel, WindTurbine
 from transformerBox import TransformerBox
 import math
@@ -16,7 +17,7 @@ print('setting up')
 # parts of the program to allow intervals of other sizes, as we may want to change 
 # this as our Q-learning algorithm evolves.
 # numpy.arange does the same thing as linspace in Matlab
-T = arange(0, 24, 2)
+T = np.arange(0, 24, 2)
 
 # the number of values that local demand can take, for the Qlearning agents
 localDemandCells = 5
@@ -87,17 +88,17 @@ class Battery(QLearningAgent):
 	def chooseAction(self, totalCostProduction, priceOfRetail, time):
 		# quantizing local demand, pulling totalDemand from the box will only work if get action
 		# is called after update is called on the box.
-		localDemand = quantize(self.transformerBox.totalDemand, self.transformerBox.demandSpace)
+		# localDemand = quantize(self.transformerBox.totalDemand, self.transformerBox.demandSpace)
 
 		charge = quantize(self.charge, chargeSpace)
 
 		prodPrice = quantize(totalCostProduction, prodPriceSpace)
 
-		retailPrice = quantize(priceOfRetail, retailPriceSpace)
+		# retailPrice = quantize(priceOfRetail, retailPriceSpace)
 
 		time = quantize(time, T)
 
-		state = [time, prodPrice, retailPrice, localDemand, charge]
+		state = [time, prodPrice, charge]
 
 		action = super(Battery, self).getAction(state)
 
@@ -124,7 +125,7 @@ class Battery(QLearningAgent):
 	def giveReward(self, reward):
 
 		# the proffits are so tiny I worry they won't change the Q table enough
-		reward = reward*10
+		reward = 10*reward
 
 		self.rewards.append(reward)
 		self.profit += reward
@@ -226,7 +227,7 @@ maxGlobalDemand = sum([boxes[i].maxLocalDemand for i in range(0, len(boxes))])
 
 # we then quantize this range by the number of demand cells we want
 interval = (minGlobalDemand - maxGlobalDemand)/globalDemandCells
-globalDemandSpace = arange(minGlobalDemand, maxGlobalDemand, interval)
+globalDemandSpace = np.arange(minGlobalDemand, maxGlobalDemand, interval)
 
 # baseline power production, this will be the amount of electricity produced by nuclear
 # power plants
@@ -255,7 +256,7 @@ prodPriceMax = prodPriceMax/maxGlobalProd
 prodPriceMin = prodPriceMin/minGlobalProd
 
 interval = (prodPriceMax - prodPriceMin)/prodPriceCells
-prodPriceSpace = arange(prodPriceMin, prodPriceMax, interval)
+prodPriceSpace = np.arange(prodPriceMin, prodPriceMax, interval)
 
 # this is something that needs to change to a function that at least somewhat mimics reality
 def retailprice(time):
@@ -308,7 +309,7 @@ print('starting model')
 
 # main program loop
 # each iteration of this loop represents one day in the model
-for day in range(0, 4000):
+for day in range(0, 500):
 	print('day: '+str(day))
 
 	# hydro power will try to match the power defecit of the day before, so while
@@ -388,6 +389,11 @@ for day in range(0, 4000):
 		gasSum = 0
 		actionSum = 0
 		for source in actionItems:
+
+			# the first day is a calibration day, so we musn't produce any gas power or do any q learning on the first day
+			if(day == 0):
+				break
+
 			if isinstance(source, Battery):
 				priceOfProduction = totalCostProduction/totalProduction
 
@@ -397,11 +403,12 @@ for day in range(0, 4000):
 				if action > 0:
 					# if the agent bought
 					totalDemand += action
-					reward = -totalCostProduction*action
+					reward = -priceOfProduction*action
 				elif action < 0:
 					# if the agent sold
 					totalProduction -= action
-					reward = -priceOfRetail*action
+					# reward = -priceOfRetail*action
+					reward = -priceOfProduction*action
 
 				source.giveReward(reward)
 				actionSum += action
@@ -448,7 +455,7 @@ for day in range(0, 4000):
 
 		# sets up the quantization for prodPrice
 		interval = (prodPriceMax - prodPriceMin)/prodPriceCells
-		prodPriceSpace = arange(prodPriceMin, prodPriceMax, interval)
+		prodPriceSpace = np.arange(prodPriceMin, prodPriceMax, interval)
 
 	# if (day == 3000):
 	# 	print('freezing all agents but one')
@@ -460,32 +467,68 @@ for day in range(0, 4000):
 	# 	for i in range(1, len(batteries)):
 	# 		batteries[i].freeze()
 
-# the first day is tainted data as it is a callibration day, we will cut it out of the data
-# demand = demand[len(T):len(demand)]
-# production = production[len(T):len(production)]
-# # prodPrice = prodPrice[len(T):len(prodPrice)]
-# # retailPrice = retailPrice[len(T):len(retailPrice)]
-# solarProduction = solarProduction[len(T):len(solarProduction)]
-# windProduction = windProduction[len(T):len(windProduction)]
-# gasProd = gasProd[len(T):len(gasProd)]
-# avgActions = avgActions[len(T):len(avgActions)]
+# a 2D array, the first dimension specifying the agent, the second the timestep
+# we dont need to cut out the first day as we do with other stats since q learning isn't active on the first day
+rewards = [agent.rewards for agent in batteries]
+avgRewards = [sum([rewards[i][j] for i in range(len(batteries))])/len(batteries) for j in range(0, len(rewards[0]))]
 
-numDaysInView = 5
-demand = demand[(len(demand)-numDaysInView*len(T)):len(demand)]
-production = production[(len(production)-numDaysInView*len(T)):len(production)]
-prodPrice = prodPrice[(len(prodPrice)-numDaysInView*len(T)):len(prodPrice)]
-retailPrice = retailPrice[(len(retailPrice)-numDaysInView*len(T)):len(retailPrice)]
-solarProduction = solarProduction[(len(solarProduction)-numDaysInView*len(T)):len(solarProduction)]
-windProduction = windProduction[(len(windProduction)-numDaysInView*len(T)):len(windProduction)]
-gasProd = gasProd[(len(gasProd)-numDaysInView*len(T)):len(gasProd)]
-avgActions = avgActions[(len(avgActions)-numDaysInView*len(T)):len(avgActions)]
+# the first day is tainted data as it is a callibration day, we will cut it out of the data
+demand = demand[len(T):len(demand)]
+production = production[len(T):len(production)]
+prodPrice = prodPrice[len(T):len(prodPrice)]
+retailPrice = retailPrice[len(T):len(retailPrice)]
+solarProduction = solarProduction[len(T):len(solarProduction)]
+windProduction = windProduction[len(T):len(windProduction)]
+gasProd = gasProd[len(T):len(gasProd)]
+avgActions = avgActions[len(T):len(avgActions)]
+
+# it should not be this complicated to serialize numpy arrays, not happy
+import io, json
+def serializeNumpyArray(array):
+	memFile = io.BytesIO()
+	np.save(memFile, array)
+	memFile.seek(0)
+	return json.dumps(memFile.read().decode('latin-1'))
+
+def deserializeNumpyArray(string):
+	memFile = io.BytesIO()
+	memFile.write(json.loads(string).encode('latin-1'))
+	memFile.seek(0)
+	return np.load(memFile, allow_pickle=True)
+
+toSave = {}
+toSave['avgRewards'] = serializeNumpyArray(avgRewards)
+toSave['demand'] = serializeNumpyArray(demand)
+toSave['production'] = serializeNumpyArray(production)
+toSave['prodPrice'] = serializeNumpyArray(prodPrice)
+toSave['retailPrice'] = serializeNumpyArray(retailPrice)
+toSave['solarProduction'] = serializeNumpyArray(solarProduction)
+toSave['windProduction'] = serializeNumpyArray(windProduction)
+toSave['gasProd'] = serializeNumpyArray(gasProd)
+toSave['avgActions'] = avgActions
+
+toSaveStr = json.dumps(toSave)
+
+f = open('modelResults', 'w')
+f.write(toSaveStr)
+f.close()
+
+# numDaysInView = 5
+# demand = demand[(len(demand)-numDaysInView*len(T)):len(demand)]
+# production = production[(len(production)-numDaysInView*len(T)):len(production)]
+# prodPrice = prodPrice[(len(prodPrice)-numDaysInView*len(T)):len(prodPrice)]
+# retailPrice = retailPrice[(len(retailPrice)-numDaysInView*len(T)):len(retailPrice)]
+# solarProduction = solarProduction[(len(solarProduction)-numDaysInView*len(T)):len(solarProduction)]
+# windProduction = windProduction[(len(windProduction)-numDaysInView*len(T)):len(windProduction)]
+# gasProd = gasProd[(len(gasProd)-numDaysInView*len(T)):len(gasProd)]
+# avgActions = avgActions[(len(avgActions)-numDaysInView*len(T)):len(avgActions)]
 
 # plots everything all nice and pretty
-x = range(0, len(demand))
-plt.plot(x, demand, label="demand")
+# x = range(0, len(demand))
+# plt.plot(x, demand, label="demand")
 # plt.plot(x, [maxGlobalDemand for i in range(0, len(x))])
 # plt.plot(x, [minGlobalDemand for i in range(0, len(x))])
-plt.plot(x, production, label="supply")
+# plt.plot(x, production, label="supply")
 # plt.plot(x, [maxGlobalProd for i in range(0, len(x))])
 # plt.plot(x, [minGlobalProd for i in range(0, len(x))])
 # plt.plot(x, prodPrice)
@@ -497,11 +540,12 @@ plt.plot(x, production, label="supply")
 # plt.plot(x, avgActions)
 # plt.plot(x, solarProduction, label="solar")
 # plt.plot(x, windProduction, label="wind")
-plt.plot(x, gasProd, label="gas")
-plt.plot(x, avgActions, label="agent's output")
+# plt.plot(x, gasProd, label="gas")
+# plt.plot(x, avgActions, label="agent's output")
 
-plt.legend()
-plt.show()
+# plt.title('excluding priceOfRetail')
+# plt.legend()
+# plt.show()
 
 # # we need recursive behavior to explore the Q tree, so I'm defining this as a function
 # we need to:
