@@ -2,7 +2,6 @@
 
 from random import uniform, choice
 import yaml
-from math import floor
 
 '''
 This class will use Q learning to maximize the reward it recieves
