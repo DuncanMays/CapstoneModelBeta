@@ -6,7 +6,7 @@ import numpy as np
 from markovSources import House, SolarPanel, WindTurbine
 from transformerBox import TransformerBox
 import math
-from random import randint, choice, shuffle
+from random import randint, choice, shuffle, uniform
 from QLearningAgent import QLearningAgent
 from copy import copy
 
@@ -76,6 +76,8 @@ class Battery(QLearningAgent):
 		self.charge = 0
 		self.transformerBox = transformerBox
 
+		self.numStates = 0
+
 		# this array will be used to track the rewards of the agent, for performance evaluation
 		self.rewards = []
 		self.profit = 0
@@ -84,6 +86,26 @@ class Battery(QLearningAgent):
 
 		# calling the init method of the parent class
 		super(Battery, self).__init__(actions)
+
+	def newLeaf(self, state):
+		if (len(state) > 0):
+			# recursively assembles a new branch until there are no remaining elements in state
+			return {state[0]: self.newLeaf(state[1:len(state)])}
+		else:
+			# if we have reached the end of the state list, we can now create a dict that will give both the expected reward
+			#  for all available actions and also the alpha factor for each state/action combination
+			q = {}
+			for i in self.actions:
+				# randomly initializes the expected reward, the alpha factor is initialized to one
+				q[i] = {'reward':uniform(-1, 1), 'alpha':1}
+
+			self.numStates += 1
+			# print('new state')
+
+			# this indicates that the dict is indeed a leaf, rather than just another node in the Qtree
+			q['type'] = 'leaf'
+
+			return q
 
 	def chooseAction(self, totalCostProduction, priceOfRetail, time):
 		# quantizing local demand, pulling totalDemand from the box will only work if get action
@@ -123,7 +145,7 @@ class Battery(QLearningAgent):
 	def giveReward(self, reward):
 
 		# the proffits are so tiny I worry they won't change the Q table enough
-		reward = 10*reward
+		reward = reward
 
 		self.rewards.append(reward)
 		self.profit += reward
@@ -206,7 +228,7 @@ shuffle(boxes)
 
 # we will now attach batteries to some of the boxes, not that the boxes are in random order so the 
 #  batteries will be assigned randomly
-numBatteries = 5
+numBatteries = 1
 
 if(numBatteries > len(boxes)):
 	print('we cant have more batteries than boxes')
@@ -284,8 +306,8 @@ def retailprice(time):
 retailPriceSpace = [65, 94, 134]
 
 # we now will create an array of gas furnaces
-numFurnaces = 1
-maxOutput = 20000
+numFurnaces = 10
+maxOutput = 2000
 furnaces = []
 for i in range(0, numFurnaces):
 	furnaces.append(GasFurnace(maxOutput))
@@ -304,6 +326,8 @@ solarProduction = []
 windProduction = []
 
 print('starting model')
+
+numStates = 0
 
 # main program loop
 # each iteration of this loop represents one day in the model
@@ -377,6 +401,10 @@ for day in range(0, 4000):
 		totalProduction += hydroSchedule[t]
 		totalCostProduction += hydroPrice*hydroSchedule[t]
 
+		# increases price of prod to reflect hypothetical gas production
+		deficit = max(totalDemand - totalProduction, 0)
+		totalCostProduction += gasPrice*deficit
+
 		for source in batteries:
 			priceOfProduction = totalCostProduction/totalProduction
 
@@ -394,7 +422,6 @@ for day in range(0, 4000):
 				reward = -priceOfProduction*action
 
 			source.giveReward(reward)
-
 
 		# actionItems = []
 
@@ -477,9 +504,9 @@ for day in range(0, 4000):
 	if (day == 3000):
 		print('freezing all agents but one')
 
-		batteries[0].rejuvenate()
-
 		oldQ = deepCopy(batteries[0].Q)
+
+		batteries[0].rejuvenate()
 
 		for i in range(1, len(batteries)):
 			batteries[i].freeze()
@@ -541,11 +568,11 @@ gasProd = gasProd[(len(gasProd)-numDaysInView*len(T)):len(gasProd)]
 avgActions = avgActions[(len(avgActions)-numDaysInView*len(T)):len(avgActions)]
 
 # plots everything all nice and pretty
-x = range(0, len(demand))
-plt.plot(x, demand, label="demand")
+# x = range(0, len(demand))
+# plt.plot(x, demand, label="demand")
 # plt.plot(x, [maxGlobalDemand for i in range(0, len(x))])
 # plt.plot(x, [minGlobalDemand for i in range(0, len(x))])
-plt.plot(x, production, label="supply")
+# plt.plot(x, production, label="supply")
 # plt.plot(x, [maxGlobalProd for i in range(0, len(x))])
 # plt.plot(x, [minGlobalProd for i in range(0, len(x))])
 # plt.plot(x, prodPrice)
@@ -555,12 +582,12 @@ plt.plot(x, production, label="supply")
 # plt.plot(x, batteries[0].toPlot)
 # plt.plot(x, avgActions)
 # plt.plot(x, avgActions)
-plt.plot(x, solarProduction, label="solar")
-plt.plot(x, windProduction, label="wind")
+# plt.plot(x, solarProduction, label="solar")
+# plt.plot(x, windProduction, label="wind")
 # plt.plot(x, gasProd, label="gas")
 # plt.plot(x, avgActions, label="agent's output")
 
-plt.legend()
+# plt.legend()
 # plt.show()
 
 # we need recursive behavior to explore the Q tree, so I'm defining this as a function
@@ -579,11 +606,12 @@ def calcValues(q1, q2):
 
 	if(('type' in q1) and (q1['type'] == 'leaf')):
 		# this block will execute if q is a leaf
-		# iterates accross the actions to change all the alpha values
 		for i in actionSpace:
-			sum1 += abs(q1[i]['reward'])
-			sum2 += abs(q2[i]['reward'])
-			diff += abs(q1[i]['reward'] - q2[i]['reward'])
+			if (q1[i]['alpha'] < 1/3):
+				# if this particular state/action combinations has happened at least 3 times in the past
+				sum1 += abs(q1[i]['reward'])
+				sum2 += abs(q2[i]['reward'])
+				diff += abs(q1[i]['reward'] - q2[i]['reward'])
 
 	else:
 		# this block will execute if q is a node in the Qtree
@@ -594,6 +622,9 @@ def calcValues(q1, q2):
 newQ = batteries[0].Q
 
 calcValues(oldQ, newQ)
+
+print('one agent, 4000 days, freeze at 3000th day, one tenth scale')
+print('test 3')
 
 print('avg value of 1')
 print(sum1/num)
