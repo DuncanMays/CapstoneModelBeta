@@ -75,6 +75,7 @@ class MarkovLive:
 
 		return self.x
 
+
 class House(MarkovLive):
 	def __init__(self):
 		MarkovLive.__init__(self, hourMean['Ontario']/10000)
@@ -89,7 +90,7 @@ class SolarPanel(MarkovLive):
         
 class WindTurbine(MarkovLive):
     def __init__(self):
-        MarkovLive.__init__(self, hourMean['Wind'], std=100000) 
+        MarkovLive.__init__(self, hourMean['Wind']) 
 
 #https://info.ornl.gov/sites/publications/Files/Pub45942.pdf industry curves
 # https://buildings.lbl.gov/sites/default/files/t_hong_-_electric_load_shape_benchmarking_for_small-_and_medium-sized_commercial_buildings.pdf office and retail curves

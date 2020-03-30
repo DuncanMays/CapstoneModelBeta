@@ -17,7 +17,7 @@ print('setting up')
 # parts of the program to allow intervals of other sizes, as we may want to change 
 # this as our Q-learning algorithm evolves.
 # numpy.arange does the same thing as linspace in Matlab
-T = np.arange(0, 24, 2)
+T = np.arange(0, 24, 8)
 
 # the number of values that local demand can take, for the Qlearning agents
 localDemandCells = 5
@@ -110,17 +110,17 @@ class Battery(QLearningAgent):
 	def chooseAction(self, totalCostProduction, priceOfRetail, time):
 		# quantizing local demand, pulling totalDemand from the box will only work if get action
 		# is called after update is called on the box.
-		# localDemand = quantize(self.transformerBox.totalDemand, self.transformerBox.demandSpace)
+		localDemand = quantize(self.transformerBox.totalDemand, self.transformerBox.demandSpace)
 
 		charge = quantize(self.charge, chargeSpace)
 
 		prodPrice = quantize(totalCostProduction, prodPriceSpace)
 
-		# retailPrice = quantize(priceOfRetail, retailPriceSpace)
+		retailPrice = quantize(priceOfRetail, retailPriceSpace)
 
 		time = quantize(time, T)
 
-		state = [time, prodPrice, charge]
+		state = [time, prodPrice,retailPrice, localDemand, charge]
 
 		action = super(Battery, self).getAction(state)
 
@@ -143,6 +143,9 @@ class Battery(QLearningAgent):
 		return action
 
 	def giveReward(self, reward):
+
+		if reward > 5:
+			print(reward)
 
 		# the proffits are so tiny I worry they won't change the Q table enough
 		reward = reward
@@ -198,7 +201,7 @@ prodPriceMin = 0
 prodPriceMax = 0
 
 solarPanels = []
-numSolarPanels = 20
+numSolarPanels = 200
 # creates numSolarPanels instances of SolarPanel
 for i in range(0,numSolarPanels):
 	solarPanels.append(SolarPanel())
@@ -206,7 +209,7 @@ for i in range(0,numSolarPanels):
 	prodPriceMax += solarPrice*solarPanels[i].max
 
 WindTurbines = []
-numWindTurbines = 3
+numWindTurbines = 30
 # creates numWindTurbines instances of WindTurbine
 for i in range(0,numWindTurbines):
 	WindTurbines.append(WindTurbine())
@@ -216,7 +219,7 @@ for i in range(0,numWindTurbines):
 # prodPrice min and max will take hydro power into account when the hydro schedule is set below in the loop
 
 # creates the power boxes through which demand will flow and a Qlearning agent will take action
-numBoxes = 65
+numBoxes = 650
 boxes = []
 for i in range(0, numBoxes):
 	# the first parameter is the number of total demand agents the box will service
@@ -332,7 +335,7 @@ numStates = 0
 # main program loop
 # each iteration of this loop represents one day in the model
 for day in range(0, 4000):
-	print('day: '+str(day))
+	print('day: '+str(day)+' out of 4000')
 
 	# hydro power will try to match the power defecit of the day before, so while
 	#  hydroSchedule is read from in the loop below, hydroTarget will be written to
@@ -606,25 +609,25 @@ def calcValues(q1, q2):
 
 	if(('type' in q1) and (q1['type'] == 'leaf')):
 		# this block will execute if q is a leaf
+		num += 1
 		for i in actionSpace:
-			if (q1[i]['alpha'] < 1/3):
-				# if this particular state/action combinations has happened at least 3 times in the past
-				sum1 += abs(q1[i]['reward'])
-				sum2 += abs(q2[i]['reward'])
-				diff += abs(q1[i]['reward'] - q2[i]['reward'])
+			sum1 += abs(q1[i]['reward'])
+			sum2 += abs(q2[i]['reward'])
+			diff += abs(q1[i]['reward'] - q2[i]['reward'])
+
+			if (abs(q1[i]['reward'] - q2[i]['reward']) > 1):
+				print(str(q1[i]['reward'])+' '+str(q2[i]['reward']))
 
 	else:
 		# this block will execute if q is a node in the Qtree
 		for i in q1:
 			calcValues(q1[i], q2[i])
-			num += 1
 
 newQ = batteries[0].Q
 
 calcValues(oldQ, newQ)
 
-print('one agent, 4000 days, freeze at 3000th day, one tenth scale')
-print('test 3')
+print('4000 days, full scale, 5 dimensional state space, 8 hour timestep')
 
 print('avg value of 1')
 print(sum1/num)

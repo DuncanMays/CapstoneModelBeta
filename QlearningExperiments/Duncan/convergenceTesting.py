@@ -106,6 +106,7 @@ def calcValues(q1, q2):
 
 	if(('type' in q1) and (q1['type'] == 'leaf')):
 		# this block will execute if q is a leaf
+		num += 1
 		for i in actionSpace:
 			sum1 += abs(q1[i]['reward'])
 			sum2 += abs(q2[i]['reward'])
@@ -115,7 +116,6 @@ def calcValues(q1, q2):
 		# this block will execute if q is a node in the Qtree
 		for i in q1:
 			calcValues(q1[i], q2[i])
-			num += 1
 
 newQ = agents[0].Q
 
