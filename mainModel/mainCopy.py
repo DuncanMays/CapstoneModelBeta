@@ -334,6 +334,7 @@ gasProd = []
 avgActions = []
 solarProduction = []
 windProduction = []
+hydroProduction = []
 
 print('starting model')
 
@@ -387,16 +388,16 @@ for day in range(0, 4000):
 			total += temp
 
 		windProduction.append(total)
-        
-        # production from hydro is added to the grid
-        total = 0
-        for dam in HydroDams:
-            temp = dam.update(t)
-            totalProduction += temp
-            totalCostProduction += hydroPrice*temp
-            total += temp
-        
-        hydroProduction.append(total)
+
+		# production from hydro is added to the grid
+		total = 0
+		for dam in HydroDams:
+			temp = dam.update(t)
+			totalProduction += temp
+			totalCostProduction += hydroPrice*temp
+			total += temp
+
+		hydroProduction.append(total)
 
 		# consumption must happen before any Q learning agents take action, and
 		#  before hydro and gas, as this will determine the electricity defecit,
@@ -647,7 +648,7 @@ newQ = batteries[0].Q
 
 calcValues(oldQ, newQ)
 
-print('4000 days, full scale, 5 dimensional state space, 8 hour timestep')
+print('4000 days, full scale, 5 dimensional state space, 8 hour timestep, with tylers mean reverting hydro')
 
 print('avg value of 1')
 print(sum1/num)
