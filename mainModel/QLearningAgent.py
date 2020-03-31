@@ -43,7 +43,7 @@ class QLearningAgent:
 	discount controls how much the agent values future rewards, high discount values mean the agent 'plans ahead' more
 	exploration controls how likely the agent is to randomly select policy
 	'''
-	def __init__(self, actions=[0,1], discount=0.25 , exploration=0.1):
+	def __init__(self, actions=[0,1], discount=0.25, exploration=0.1):
 		self.Q = {}
 		self.actions = actions
 		self.discount = discount

@@ -39,7 +39,7 @@ prodPriceSpace = []
 numChargeCells = 5
 chargeSpace = []
 
-actionSpace = [-1,0,1]
+actionSpace = [-1, 0, 1]
 
 # this is the first example of a pattern that repeats itself a bunch of times,
 # we determine a maximum vlaue a quantity can take, and a minimum quatnity. and then we form a 
@@ -72,7 +72,7 @@ def deepCopy(obj):
 # this class represents batterys in our model
 class Battery(QLearningAgent):
 
-	def __init__(self, actions, transformerBox):
+	def __init__(self, actionSpace, transformerBox):
 		self.charge = 0
 		self.transformerBox = transformerBox
 
@@ -83,7 +83,7 @@ class Battery(QLearningAgent):
 		self.toPlot = []
 
 		# calling the init method of the parent class
-		super(Battery, self).__init__(actions)
+		super(Battery, self).__init__(actions=actionSpace)
 
 	def chooseAction(self, priceOfProduction, priceOfRetail, time):
 		# quantizing local demand, pulling totalDemand from the box will only work if get action
@@ -125,7 +125,7 @@ class Battery(QLearningAgent):
 	def giveReward(self, reward):
 
 		# the proffits are so tiny I worry they won't change the Q table enough
-		reward = reward*10
+		reward = reward
 
 		self.rewards.append(reward)
 		self.profit += reward
@@ -284,10 +284,6 @@ def retailprice(time):
 
 retailPriceSpace = [65, 94, 134]
 
-
-# the price of production at a given interval, initialized to zero
-priceOfProduction = 0
-
 # arrays that will be used to plot data at the end of the program, serve no other purpose than this
 demand = []
 production = []
@@ -312,16 +308,12 @@ for day in range(0, 4000):
 	# clears hydroTarget for the next day
 	hydroTarget = {}
 
-	# the figures for the consumption and production of all the Q learning agents
-	Qdemand = 0
-	Qsupply = 0
-
 	# each iteration in this loop represents one time interval (not a full day)
 	for t in T:
 		# resets these variables to zero
-		totalProduction = Qsupply
-		totalDemand = Qdemand
-		priceOfProduction = 0
+		totalProduction = 0
+		totalDemand = 0
+		totalCostOfProd = 0
 		priceOfRetail = retailprice(t)
 
 		# production  from uncontrolled sources must be added to the grid first, 
@@ -329,21 +321,21 @@ for day in range(0, 4000):
 		#  hydro and gas, as well as discharge from batteries) are determined using it.
 
 		# production from nuclear plants is added to the grid, 
-		# with necessary adjustments to priceOfProduction
+		# with necessary adjustments to totalCostOfProd
 		totalProduction += baseline
-		priceOfProduction += nuclearPrice*baseline
+		totalCostOfProd += nuclearPrice*baseline
 
 		# production from solar panels is added to the grid
 		for panel in solarPanels:
 			temp = panel.update(t)
 			totalProduction += temp
-			priceOfProduction += solarPrice*temp
+			totalCostOfProd += solarPrice*temp
 
 		# production from wind turbines is also added to the grid
 		for turbine in WindTurbines:
 			temp = turbine.update(t)
 			totalProduction += temp
-			priceOfProduction += windPrice*temp
+			totalCostOfProd += windPrice*temp
 
 		# consumption must happen before any Q learning agents take action, and
 		#  before hydro and gas, as this will determine the electricity defecit,
@@ -366,62 +358,54 @@ for day in range(0, 4000):
 
 		# adds hydro power to the grid
 		totalProduction += hydroSchedule[t]
-		priceOfProduction += hydroPrice*hydroSchedule[t]
+		totalCostOfProd += hydroPrice*hydroSchedule[t]
 
-		# production from gas-fired plants is added to the grid
+		# the price of electricity is increased as if gas production has taken place, this means that agents will buy and 
+		#  sell at the price of electricity they would pay with gas power, but gas will only be added to the grid after 
+		#  the agents act.
 		gasProduction = 0
 		if(totalDemand > totalProduction):
-			gasProduction = totalDemand - totalProduction
-			totalProduction += gasProduction
-			priceOfProduction += gasPrice*gasProduction
+			totalCostOfProd += gasPrice*gasProduction
 		gasProd.append(gasProduction)
 
-		# we do Qlearning last. I had a bit of a dillemma on the order in which to implement this. Qlearning agents
-		#  need to know the price of production, which is determined by global demand, which is determined by the 
-		#  actions of Qlearning agents. What I've decided to do is push supply and demand from Qlearning agents into
-		#  the next timestep. This means that whatever electricity an agent buys or sells will be drawn from or 
-		#  pushed to the grid in the next timestep. These values are stored in the variables Qdemand and Qsupply.
-		Qdemand = 0
-		Qsupply = 0
 		actions = []
 
 		# right now, price of production is the total price to produce all the electricity in the system, so we must divide
 		# it by the amount of electricity in the system to get the price per MWh
-		priceOfProduction = priceOfProduction/totalProduction 
+		priceOfProd = totalCostOfProd/totalProduction 
 
 		if (day != 0):
 			# get agents actions from time, price of retail, price of production
 			# the local demand, as well as the battery's capacity, will be added to state within the battery class.
 			for j in batteries:
-				action = j.chooseAction(priceOfProduction, priceOfRetail, t)
+				action = j.chooseAction(priceOfProd, priceOfRetail, t)
 				actions.append(action)
 
+				reward = 0
 				if action > 0:
 					# if the agent bought
 					totalDemand += action
+					reward = -priceOfProd*action
 				elif action < 0:
 					# if the agent sold
 					totalProduction -= action
+					reward = -priceOfRetail*action
 
-			# calculate reward the reward for each agent
-			for j in range(0, len(batteries)):
-				action = actions[j]
-				if action < 0:
-					# the agent sold
-					batteries[j].giveReward(priceOfRetail*action)
-				else:
-					# the agent bought
-					batteries[j].giveReward(priceOfProduction*action)
+				j.giveReward(reward)
 
 			# records the average action of all of the agents for diagnostics
 			avgActions.append((sum(actions)/len(actions))/500)
 
 
+		if(totalDemand > totalProduction):
+			gasProduction = totalDemand - totalProduction
+			totalProduction += gasProduction
+
 
 		# these lines only serve to make plots below
 		demand.append(totalDemand)
 		production.append(totalProduction)
-		prodPrice.append(priceOfProduction)
+		prodPrice.append(priceOfProd)
 		retailPrice.append(priceOfRetail)
 
 	if(day == 0):
@@ -515,7 +499,7 @@ newQ = batteries[0].Q
 
 calcValues(oldQ, newQ)
 
-print('old code, origional configuration timestep: '+str(timestep))
+print('old code, actions are [-1,0,1], hypothetical gas production, timestep: '+str(timestep))
 
 print('avg value of 1')
 print(sum1/num)
