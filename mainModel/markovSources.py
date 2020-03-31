@@ -64,14 +64,14 @@ class MarkovLive:
 		delta = (self.series.iloc[(time+1)%24] - self.x)/self.std
 		if delta > 0:
 			if np.random.random_sample() > delta:
-				self.x = max(self.x + np.random.normal(loc=0,scale=delta*self.std+.1),0)
+				self.x = max(self.x + np.random.normal(loc=0,scale=delta*self.std/2),0)
 			else:
-				self.x = max(self.x + np.random.normal(loc=delta*self.std/2,scale=delta*self.std+.1),0)
+				self.x = max(self.x + np.random.normal(loc=delta*self.std/2,scale=delta*self.std/2),0)
 		else:
 			if np.random.random_sample() > -delta:
-				self.x = max(self.x + np.random.normal(loc=0,scale=-delta*self.std+.1),0)
+				self.x = max(self.x + np.random.normal(loc=0,scale=-delta*self.std/2),0)
 			else:
-				self.x = max(self.x + np.random.normal(loc=delta*self.std/2,scale=-delta*self.std+.1),0)
+				self.x = max(self.x + np.random.normal(loc=delta*self.std/2,scale=-delta*self.std/2),0)
 
 		return self.x
 
