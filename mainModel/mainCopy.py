@@ -17,7 +17,7 @@ print('setting up')
 # parts of the program to allow intervals of other sizes, as we may want to change 
 # this as our Q-learning algorithm evolves.
 # numpy.arange does the same thing as linspace in Matlab
-T = np.arange(0, 24, 8)
+T = np.arange(0, 24, 2)
 
 # the number of values that local demand can take, for the Qlearning agents
 localDemandCells = 5
@@ -648,7 +648,7 @@ newQ = batteries[0].Q
 
 calcValues(oldQ, newQ)
 
-print('4000 days, full scale, 5 dimensional state space, 8 hour timestep, with tylers mean reverting hydro')
+print('4000 days, full scale, 5 dimensional state space, 2 hour timestep, with tylers mean reverting hydro')
 
 print('avg value of 1')
 print(sum1/num)
