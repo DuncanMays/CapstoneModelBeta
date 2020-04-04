@@ -8,6 +8,7 @@ import math
 from random import randint, choice
 from QLearningAgent import QLearningAgent
 from copy import copy
+import pandas as pd
 
 print('setting up')
 
@@ -18,7 +19,7 @@ discountFactor = 0.25
 # parts of the program to allow intervals of other sizes, as we may want to change 
 # this as our Q-learning algorithm evolves.
 # numpy.arange does the same thing as linspace in Matlab
-timestep = 8
+timestep = 2
 T = arange(0, 24, timestep)
 
 # the number of values that local demand can take, for the Qlearning agents
@@ -35,7 +36,7 @@ retailPriceCells = 5
 retailPriceSpace = []
 
 # the number of values that the production price of electricity can take, for the Qlearning agents
-prodPriceCells = 5
+prodPriceCells = 7
 prodPriceSpace = []
 
 actionSpace = [-70, 0, 70]
@@ -46,6 +47,10 @@ actionSpace = [-70, 0, 70]
 minCharge = 0
 maxCharge = 140
 chargeSpace = [0, 70, 140]
+
+demandData = pd.read_pickle('../Data/2018Demand')
+# the factor of 30 makes it at least somewhat resemble previous sims
+demandData = demandData['Ontario']*30
 
 # this method takes a value and returns the closest element of the set it is given
 def quantize(value, targetSet):
@@ -74,9 +79,7 @@ class Battery(QLearningAgent):
 
 		# this array will be used to track the rewards of the agent, for performance evaluation
 		self.rewards = []
-		self.profit = 0
-
-		self.toPlot = []
+		self.actions = []
 
 		# calling the init method of the parent class
 		super(Battery, self).__init__(actions=actionSpace, discount = discountFactor)
@@ -84,7 +87,7 @@ class Battery(QLearningAgent):
 	def chooseAction(self, priceOfProduction, priceOfRetail, time):
 		# quantizing local demand, pulling totalDemand from the box will only work if get action
 		# is called after update is called on the box.
-		localDemand = quantize(self.transformerBox.totalDemand, self.transformerBox.demandSpace)
+		# localDemand = quantize(self.transformerBox.totalDemand, self.transformerBox.demandSpace)
 
 		charge = quantize(self.charge, chargeSpace)
 
@@ -94,11 +97,9 @@ class Battery(QLearningAgent):
 
 		time = quantize(time, T)
 
-		state = [time, prodPrice, priceOfRetail, localDemand, charge]
+		state = [time, prodPrice, priceOfRetail, charge]
 
 		action = super(Battery, self).getAction(state)
-
-		self.toPlot.append(prodPrice)
 
 		# we now must check to make sure that the action makes sense
 		# if we sell, have we sold more than the battery's charge?
@@ -117,16 +118,6 @@ class Battery(QLearningAgent):
 		self.charge += action
 
 		return action
-
-	def giveReward(self, reward):
-
-		# the proffits are so tiny I worry they won't change the Q table enough
-		reward = reward
-
-		self.rewards.append(reward)
-		self.profit += reward
-
-		super(Battery, self).giveReward(reward)
 
 	# this stops the agent from learning any more, effectively freezing their policy
 	def freeze(self):
@@ -160,29 +151,29 @@ hydroTarget = {T[i]: 0 for i in range(0, len(T))}
 # the price of production for various methods in dollars per dollars / (megawatt/Hours)^2
 nuclearPrice = 0.00032
 hydroPrice = 0.00790
-gasPrice = 0.00975
+gasPrice = 0.00975 + 5.29
 windPrice = -0.00130
 solarPrice = -0.02063
 
 # we will need these to create a quantization for the production price of electricity
-prodPriceMin = 0
-prodPriceMax = 0
+prodCostMin = 0
+prodCostMax = 0
 
 solarPanels = []
 numSolarPanels = 20
 # creates numSolarPanels instances of SolarPanel
 for i in range(0,numSolarPanels):
 	solarPanels.append(SolarPanel())
-	prodPriceMin += solarPrice*solarPanels[i].min
-	prodPriceMax += solarPrice*solarPanels[i].max
+	prodCostMin += solarPrice*solarPanels[i].min
+	prodCostMax += solarPrice*solarPanels[i].max
 
 WindTurbines = []
 numWindTurbines = 50
 # creates numWindTurbines instances of WindTurbine
 for i in range(0,numWindTurbines):
 	WindTurbines.append(WindTurbine())
-	prodPriceMin += windPrice*WindTurbines[i].min
-	prodPriceMax += windPrice*WindTurbines[i].max
+	prodCostMin += windPrice*WindTurbines[i].min
+	prodCostMax += windPrice*WindTurbines[i].max
 
 # prodPrice min and max will take hydro power into account when the hydro schedule is set below in the loop
 
@@ -195,7 +186,7 @@ for i in range(0, numBoxes):
 	boxes.append(TransformerBox(randint(20, 50), 0.9, numCells = localDemandCells))
 
 # we will now attach batteries to some of the boxes
-numBatteries = 200
+numBatteries = 1
 batteries = []
 # we need recursive behavior, so I will write this as a function
 # doing it like this means that the program will crash if the number of batterys exceeds the number of boxes
@@ -217,8 +208,11 @@ for i in range(0, numBatteries):
 # we now create the space in which global demand will live in, we will not
 # use it right now but we very well might when we implement post-procing.
 # we do this by first determining the range that demand can take values in
-minGlobalDemand = sum([boxes[i].minLocalDemand for i in range(0, len(boxes))])
-maxGlobalDemand = sum([boxes[i].maxLocalDemand for i in range(0, len(boxes))])
+# minGlobalDemand = sum([boxes[i].minLocalDemand for i in range(0, len(boxes))])
+# maxGlobalDemand = sum([boxes[i].maxLocalDemand for i in range(0, len(boxes))])
+
+minGlobalDemand = min(demandData)
+maxGlobalDemand = max(demandData)
 
 # we then quantize this range by the number of demand cells we want
 interval = (minGlobalDemand - maxGlobalDemand)/globalDemandCells
@@ -228,8 +222,8 @@ globalDemandSpace = arange(minGlobalDemand, maxGlobalDemand, interval)
 # power plants
 baseline = minGlobalDemand
 
-prodPriceMin += nuclearPrice*baseline
-prodPriceMax += nuclearPrice*baseline
+prodCostMin += nuclearPrice*baseline
+prodCostMax += nuclearPrice*baseline
 
 # to determine min and max production values for hydro power we need min and max global power,
 # as well as the min and max production for each source
@@ -243,42 +237,42 @@ maxHydro = 0
 # really just minGlobalDemand - baseline, but baseline = minGlobalDemand
 minHydro = 0
 
-prodPriceMin += hydroPrice*minHydro
-prodPriceMax += hydroPrice*maxHydro
+prodCostMin += hydroPrice*minHydro
+prodCostMax += hydroPrice*maxHydro
 
 # we must normalize
-prodPriceMax = prodPriceMax/maxGlobalProd
-prodPriceMin = prodPriceMin/minGlobalProd
+prodCostMax = prodCostMax/maxGlobalProd
+prodCostMin = prodCostMin/minGlobalProd
 
-interval = (prodPriceMax - prodPriceMin)/prodPriceCells
-prodPriceSpace = arange(prodPriceMin, prodPriceMax, interval)
+interval = (prodCostMax - prodCostMin)/prodPriceCells
+prodPriceSpace = arange(prodCostMin, prodCostMax, interval)
 
 # this is something that needs to change to a function that at least somewhat mimics reality
 def retailprice(time):
     if 0<= time < 7:
         #Off peak rates, 6.5¢/kWh, 6.5¢ / 100(¢/$) * 1000 kWh/MWh = 65$/MWh
         # priceOfRetail = 65
-        priceOfRetail = 0.0005
+        priceOfRetail = 0.0065/3
     elif 7 <= time < 11:
         #Mid peak rates, 9.4¢/kWh, 9.4¢ / 100(¢/$) * 1000 kWh/MWh = 94$/MWh
         # priceOfRetail = 94
-        priceOfRetail = 0.0015
+        priceOfRetail = 0.0094/3
     elif 11 <= time < 17:
         #On peak rates, 13.4¢/kWh, 13.4¢ / 100(¢/$) * 1000 kWh/MWh = 134$/MWh
         # priceOfRetail = 134
-        priceOfRetail = 0.0025
+        priceOfRetail = 0.0034/3
     elif 17 <= time < 19:
         #Mid peak rates, 9.4¢/kWh, 9.4¢ / 100(¢/$) * 1000 kWh/MWh = 94$/MWh
         # priceOfRetail = 94
-        priceOfRetail = 0.0015
+        priceOfRetail = 0.0094/3
     elif 19 <= time <= 24:
         #Off peak rates, 6.5¢/kWh, 6.5¢ / 100(¢/$) * 1000 kWh/MWh = 65$/MWh
         # priceOfRetail = 65
-        priceOfRetail = 0.0005
+        priceOfRetail = 0.0065/3
     
     return priceOfRetail
 
-retailPriceSpace = [65, 94, 134]
+retailPriceSpace = [0.0034/3, 0.0094/3, 0.0065/3]
 
 # arrays that will be used to plot data at the end of the program, serve no other purpose than this
 demand = []
@@ -287,6 +281,7 @@ prodPrice = []
 retailPrice = []
 gasProd = []
 avgActions = []
+avgReward = []
 
 print('starting model')
 
@@ -294,7 +289,7 @@ oldQ = {}
 
 # main program loop
 # each iteration of this loop represents one day in the model
-for day in range(0, 4000):
+for day in range(0, 5000):
 	print('day: '+str(day))
 
 	# hydro power will try to match the power defecit of the day before, so while
@@ -341,8 +336,13 @@ for day in range(0, 4000):
 		#  by price.
 
 		#  users draw electricity from grid
-		for i in boxes:
-			totalDemand += i.update(t)
+		# for i in boxes:
+		# 	totalDemand += i.update(t)
+
+		# we need to modulate the time, since
+		time = 24*day + t
+		index = time%len(demandData)
+		totalDemand = demandData[index]
 
 		# hydro power matches the difference between totalDemand and nuclear power and stochastic producers
 		# and so we must record that difference here
@@ -359,25 +359,23 @@ for day in range(0, 4000):
 		# the price of electricity is increased as if gas production has taken place, this means that agents will buy and 
 		#  sell at the price of electricity they would pay with gas power, but gas will only be added to the grid after 
 		#  the agents act.
-		gasProduction = 0
+		hypotheticalGasProduction = 0
 		if(totalDemand > totalProduction):
-			gasProduction = totalDemand - totalProduction
-			totalCostOfProd += gasPrice*gasProduction
-		gasProd.append(gasProduction)
-
-		actions = []
+			hypotheticalGasProduction = totalDemand - totalProduction
+			totalCostOfProd += gasPrice*hypotheticalGasProduction
 
 		# right now, price of production is the total price to produce all the electricity in the system, so we must divide
 		# it by the amount of electricity in the system to get the price per MWh
 		priceOfProd = totalCostOfProd/totalProduction 
+
+		actionSum = 0
+		rewardSum = 0
 
 		if (day != 0):
 			# get agents actions from time, price of retail, price of production
 			# the local demand, as well as the battery's capacity, will be added to state within the battery class.
 			for j in batteries:
 				action = j.chooseAction(priceOfProd, priceOfRetail, t)
-				actions.append(action)
-
 				reward = 0
 				if action > 0:
 					# if the agent bought
@@ -390,13 +388,20 @@ for day in range(0, 4000):
 
 				j.giveReward(reward)
 
-			# records the average action of all of the agents for diagnostics
-			# avgActions.append((sum(actions)/len(actions))/500)
+				actionSum += action
+				rewardSum += reward
+
+			avgActions.append(actionSum/len(batteries))
+			avgReward.append(rewardSum/len(batteries))
 
 		# we only add gasProduction after the Q learning agents have done their thing
+		gasProduction = 0
+		if(totalDemand > totalProduction):
+			gasProduction = totalDemand - totalProduction
 		totalProduction += gasProduction
 
 		# these lines only serve to make plots below
+		gasProd.append(gasProduction)
 		demand.append(totalDemand)
 		production.append(totalProduction)
 		prodPrice.append(priceOfProd)
@@ -405,102 +410,108 @@ for day in range(0, 4000):
 	if(day == 0):
 
 		# finds the max and min hydro production values
-		max = hydroTarget[0]
-		min = hydroTarget[0]
+		maxHydro = hydroTarget[0]
+		minHydro = hydroTarget[0]
 		for i in hydroTarget:
-			if (hydroTarget[i] > max):
-				max = hydroTarget[i]
+			if (hydroTarget[i] > maxHydro):
+				maxHydro = hydroTarget[i]
 
-			elif (hydroTarget[i] < min):
-				min = hydroTarget[i]
+			elif (hydroTarget[i] < minHydro):
+				minHydro = hydroTarget[i]
 
-		maxGlobalProd += max
-		minGlobalProd += min
+		maxGlobalProd += maxHydro
+		minGlobalProd += minHydro
 
-		prodPriceMax += hydroPrice*max
-		prodPriceMin += hydroPrice*min
+		# GUESTIMATION
+		maxGlobalProd += 50000
+		minGlobalProd -= 50000
 
-		prodPriceMax = prodPriceMax/maxGlobalProd
-		prodPriceMin = prodPriceMin/minGlobalProd
+
+		prodCostMax += hydroPrice*maxHydro
+		prodCostMin += hydroPrice*minHydro
+
+		# GUESTIMATION
+		prodPriceMax = prodCostMax/minGlobalProd
+		prodPriceMin = prodCostMin/maxGlobalProd - 0.001
 
 		# sets up the quantization for prodPrice
 		interval = (prodPriceMax - prodPriceMin)/prodPriceCells
 		prodPriceSpace = arange(prodPriceMin, prodPriceMax, interval)
 
-	if (day == 3000):
-		print('freezing all agents but one')
+	# if (day == 3000):
+	# 	print('freezing all agents but one')
 
-		batteries[0].rejuvenate()
+	# 	batteries[0].rejuvenate()
 
-		oldQ = deepCopy(batteries[0].Q)
+	# 	oldQ = deepCopy(batteries[0].Q)
 
-		for i in range(1, len(batteries)):
-			batteries[i].freeze()
+	# 	for i in range(1, len(batteries)):
+	# 		batteries[i].freeze()
 
 # the first day is tainted data as it is a callibration day, we will cut it out of the data
-# demand = demand[len(T):len(demand)]
-# production = production[len(T):len(production)]
-# prodPrice = prodPrice[len(T):len(prodPrice)]
-# retailPrice = retailPrice[len(T):len(retailPrice)]
+demand = demand[len(T):len(demand)]
+production = production[len(T):len(production)]
+prodPrice = prodPrice[len(T):len(prodPrice)]
+retailPrice = retailPrice[len(T):len(retailPrice)]
 
 # plots everything all nice and pretty
 # x = range(0, len(demand))
-# plt.plot(x, demand)
+# plt.plot(x, demand, label='demand')
 # plt.plot(x, [maxGlobalDemand for i in range(0, len(x))])
 # plt.plot(x, [minGlobalDemand for i in range(0, len(x))])
-# plt.plot(x, production)
+# plt.plot(x, production, label='production')
 # plt.plot(x, [maxGlobalProd for i in range(0, len(x))])
 # plt.plot(x, [minGlobalProd for i in range(0, len(x))])
-# plt.plot(x, prodPrice)
+# plt.plot(x, prodPrice, label='prodprice')
 # plt.plot(x, [prodPriceMax for i in range(0, len(x))])
 # plt.plot(x, [prodPriceMin for i in range(0, len(x))])
-# plt.plot(x, retailPrice)
+# plt.plot(x[95*4:100*4], retailPrice[95*4:100*4], label='retailPrice')
 # plt.plot(x, batteries[0].toPlot)
 # plt.plot(x, avgActions)
 # plt.plot(x, avgActions)
+# plt.plot(x[95*4:100*4], gasProd[95*4:100*4], label='gas production')
 
+# plt.legend()
 # plt.show()
 
 # we need recursive behavior to explore the Q tree, so I'm defining this as a function
 # we need to:
 	# get the average value of all expected rewards in all leaves of both trees
 	# get the average difference between the expected values in all leaves of both trees
-sum1 = 0
-sum2 = 0
-diff = 0
-num = 0
-def calcValues(q1, q2):
-	global sum1
-	global sum2
-	global diff
-	global num
+# sum1 = 0
+# sum2 = 0
+# diff = 0
+# num = 0
+# def calcValues(q1, q2):
+# 	global sum1
+# 	global sum2
+# 	global diff
+# 	global num
 
-	if(('type' in q1) and (q1['type'] == 'leaf')):
-		# this block will execute if q is a leaf
-		num += 1
-		# iterates accross the actions to change all the alpha values
-		for i in actionSpace:
-			sum1 += abs(q1[i]['reward'])
-			sum2 += abs(q2[i]['reward'])
-			diff += abs(q1[i]['reward'] - q2[i]['reward'])
+# 	if(('type' in q1) and (q1['type'] == 'leaf')):
+# 		# this block will execute if q is a leaf
+# 		num += 1
+# 		# iterates accross the actions to change all the alpha values
+# 		for i in actionSpace:
+# 			sum1 += abs(q1[i]['reward'])
+# 			sum2 += abs(q2[i]['reward'])
+# 			diff += abs(q1[i]['reward'] - q2[i]['reward'])
 
-	else:
-		# this block will execute if q is a node in the Qtree
-		for i in q1:
-			calcValues(q1[i], q2[i])
+# 	else:
+# 		# this block will execute if q is a node in the Qtree
+# 		for i in q1:
+# 			calcValues(q1[i], q2[i])
 
-newQ = batteries[0].Q
+# newQ = batteries[0].Q
 
-calcValues(oldQ, newQ)
+# calcValues(oldQ, newQ)
 
-print('without tylers changes and actions are [-1, 0, 1]')
-
-print('avg value of 1')
-print(sum1/num)
-print('avg value of 2')
-print(sum2/num)
-print('avg diff')
-print(diff/num)
+# print('avg value of 1')
+# print(sum1/num)
+# print('avg value of 2')
+# print(sum2/num)
+# print('avg diff')
+# print(diff/num)
 
 # # we will now only plot the last n days
 # n = 5
@@ -544,12 +555,15 @@ print(diff/num)
 
 import json
 obj = {}
+
 obj['gasProd'] = gasProd
 
-obj['agentRewards'] = [agent.rewards for agent in batteries]
+obj['agentRewards'] = avgActions
 
-str = json.dumps(obj)
+obj['agentActions'] = avgReward
 
-f = open('gasProdvsRewards0agents', 'w')
-f.write(str)
+records = json.dumps(obj)
+
+f = open('withSocialCostOfCarbon'+str(numBatteries)+'Agents', 'w')
+f.write(records)
 f.close()
