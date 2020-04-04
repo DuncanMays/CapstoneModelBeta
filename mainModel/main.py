@@ -11,6 +11,8 @@ from copy import copy
 
 print('setting up')
 
+discountFactor = 0.25
+
 # this array holds all the times throughout the day that our model will iterate
 # right now I've set it to 15 minute intervals, we should take care in other 
 # parts of the program to allow intervals of other sizes, as we may want to change 
@@ -36,20 +38,14 @@ retailPriceSpace = []
 prodPriceCells = 5
 prodPriceSpace = []
 
-numChargeCells = 5
-chargeSpace = []
-
-actionSpace = [-1, 0, 1]
-
+actionSpace = [-70, 0, 70]
 # this is the first example of a pattern that repeats itself a bunch of times,
 # we determine a maximum vlaue a quantity can take, and a minimum quatnity. and then we form a 
 # quantization with a given number of cells in that range. In this case we are quantizint the
 # battery's charge. This needs to happen before we define the batter class below.
 minCharge = 0
-maxCharge = 15
-
-interval = (maxCharge - minCharge)/numChargeCells
-chargeSpace = arange(minCharge, maxCharge, interval)
+maxCharge = 140
+chargeSpace = [0, 70, 140]
 
 # this method takes a value and returns the closest element of the set it is given
 def quantize(value, targetSet):
@@ -83,7 +79,7 @@ class Battery(QLearningAgent):
 		self.toPlot = []
 
 		# calling the init method of the parent class
-		super(Battery, self).__init__(actions=actionSpace)
+		super(Battery, self).__init__(actions=actionSpace, discount = discountFactor)
 
 	def chooseAction(self, priceOfProduction, priceOfRetail, time):
 		# quantizing local demand, pulling totalDemand from the box will only work if get action
@@ -365,6 +361,7 @@ for day in range(0, 4000):
 		#  the agents act.
 		gasProduction = 0
 		if(totalDemand > totalProduction):
+			gasProduction = totalDemand - totalProduction
 			totalCostOfProd += gasPrice*gasProduction
 		gasProd.append(gasProduction)
 
@@ -394,13 +391,10 @@ for day in range(0, 4000):
 				j.giveReward(reward)
 
 			# records the average action of all of the agents for diagnostics
-			avgActions.append((sum(actions)/len(actions))/500)
+			# avgActions.append((sum(actions)/len(actions))/500)
 
-
-		if(totalDemand > totalProduction):
-			gasProduction = totalDemand - totalProduction
-			totalProduction += gasProduction
-
+		# we only add gasProduction after the Q learning agents have done their thing
+		totalProduction += gasProduction
 
 		# these lines only serve to make plots below
 		demand.append(totalDemand)
@@ -499,7 +493,7 @@ newQ = batteries[0].Q
 
 calcValues(oldQ, newQ)
 
-print('old code, actions are [-1,0,1], hypothetical gas production, timestep: '+str(timestep))
+print('without tylers changes and actions are [-1, 0, 1]')
 
 print('avg value of 1')
 print(sum1/num)
@@ -547,3 +541,15 @@ print(diff/num)
 # x = range(0, len(toPlot))
 # plt.plot(x, toPlot)
 # plt.show()
+
+import json
+obj = {}
+obj['gasProd'] = gasProd
+
+obj['agentRewards'] = [agent.rewards for agent in batteries]
+
+str = json.dumps(obj)
+
+f = open('gasProdvsRewards0agents', 'w')
+f.write(str)
+f.close()
