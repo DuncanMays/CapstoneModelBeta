@@ -151,7 +151,8 @@ hydroTarget = {T[i]: 0 for i in range(0, len(T))}
 # the price of production for various methods in dollars per dollars / (megawatt/Hours)^2
 nuclearPrice = 0.00032
 hydroPrice = 0.00790
-gasPrice = 0.00975 + 5.29
+# gasPrice = 0.00975 + 5.29
+gasPrice = 0.00975
 windPrice = -0.00130
 solarPrice = -0.02063
 
@@ -186,7 +187,7 @@ for i in range(0, numBoxes):
 	boxes.append(TransformerBox(randint(20, 50), 0.9, numCells = localDemandCells))
 
 # we will now attach batteries to some of the boxes
-numBatteries = 1
+numBatteries = 200
 batteries = []
 # we need recursive behavior, so I will write this as a function
 # doing it like this means that the program will crash if the number of batterys exceeds the number of boxes
@@ -208,11 +209,11 @@ for i in range(0, numBatteries):
 # we now create the space in which global demand will live in, we will not
 # use it right now but we very well might when we implement post-procing.
 # we do this by first determining the range that demand can take values in
-# minGlobalDemand = sum([boxes[i].minLocalDemand for i in range(0, len(boxes))])
-# maxGlobalDemand = sum([boxes[i].maxLocalDemand for i in range(0, len(boxes))])
+minGlobalDemand = sum([boxes[i].minLocalDemand for i in range(0, len(boxes))])
+maxGlobalDemand = sum([boxes[i].maxLocalDemand for i in range(0, len(boxes))])
 
-minGlobalDemand = min(demandData)
-maxGlobalDemand = max(demandData)
+# minGlobalDemand = min(demandData)
+# maxGlobalDemand = max(demandData)
 
 # we then quantize this range by the number of demand cells we want
 interval = (minGlobalDemand - maxGlobalDemand)/globalDemandCells
@@ -260,7 +261,7 @@ def retailprice(time):
     elif 11 <= time < 17:
         #On peak rates, 13.4¢/kWh, 13.4¢ / 100(¢/$) * 1000 kWh/MWh = 134$/MWh
         # priceOfRetail = 134
-        priceOfRetail = 0.0034/3
+        priceOfRetail = 0.0134/3
     elif 17 <= time < 19:
         #Mid peak rates, 9.4¢/kWh, 9.4¢ / 100(¢/$) * 1000 kWh/MWh = 94$/MWh
         # priceOfRetail = 94
@@ -272,13 +273,17 @@ def retailprice(time):
     
     return priceOfRetail
 
-retailPriceSpace = [0.0034/3, 0.0094/3, 0.0065/3]
+retailPriceSpace = [134, 94, 65]
+retailPriceSpace = [0.0134/3, 0.0094/3, 0.0065/3]
 
 # arrays that will be used to plot data at the end of the program, serve no other purpose than this
 demand = []
 production = []
 prodPrice = []
 retailPrice = []
+windProd = []
+solarProd = []
+hydroProd = []
 gasProd = []
 avgActions = []
 avgReward = []
@@ -289,7 +294,7 @@ oldQ = {}
 
 # main program loop
 # each iteration of this loop represents one day in the model
-for day in range(0, 5000):
+for day in range(0, 10):
 	print('day: '+str(day))
 
 	# hydro power will try to match the power defecit of the day before, so while
@@ -321,12 +326,14 @@ for day in range(0, 5000):
 			temp = panel.update(t)
 			totalProduction += temp
 			totalCostOfProd += solarPrice*temp
+		solarProd.append(totalProduction)
 
 		# production from wind turbines is also added to the grid
 		for turbine in WindTurbines:
 			temp = turbine.update(t)
 			totalProduction += temp
 			totalCostOfProd += windPrice*temp
+		windProd.append(totalProduction)
 
 		# consumption must happen before any Q learning agents take action, and
 		#  before hydro and gas, as this will determine the electricity defecit,
@@ -336,13 +343,13 @@ for day in range(0, 5000):
 		#  by price.
 
 		#  users draw electricity from grid
-		# for i in boxes:
-		# 	totalDemand += i.update(t)
+		for i in boxes:
+			totalDemand += i.update(t)
 
 		# we need to modulate the time, since
-		time = 24*day + t
-		index = time%len(demandData)
-		totalDemand = demandData[index]
+		# time = 24*day + t
+		# index = time%len(demandData)
+		# totalDemand = demandData[index]
 
 		# hydro power matches the difference between totalDemand and nuclear power and stochastic producers
 		# and so we must record that difference here
@@ -355,6 +362,7 @@ for day in range(0, 5000):
 		# adds hydro power to the grid
 		totalProduction += hydroSchedule[t]
 		totalCostOfProd += hydroPrice*hydroSchedule[t]
+		hydroProd.append(totalProduction)
 
 		# the price of electricity is increased as if gas production has taken place, this means that agents will buy and 
 		#  sell at the price of electricity they would pay with gas power, but gas will only be added to the grid after 
@@ -401,11 +409,11 @@ for day in range(0, 5000):
 		totalProduction += gasProduction
 
 		# these lines only serve to make plots below
-		gasProd.append(gasProduction)
+		gasProd.append(totalProduction)
 		demand.append(totalDemand)
 		production.append(totalProduction)
 		prodPrice.append(priceOfProd)
-		retailPrice.append(priceOfRetail)
+		retailPrice.append(priceOfRetail*30000)
 
 	if(day == 0):
 
@@ -455,7 +463,7 @@ prodPrice = prodPrice[len(T):len(prodPrice)]
 retailPrice = retailPrice[len(T):len(retailPrice)]
 
 # plots everything all nice and pretty
-# x = range(0, len(demand))
+x = range(0, len(solarProd))
 # plt.plot(x, demand, label='demand')
 # plt.plot(x, [maxGlobalDemand for i in range(0, len(x))])
 # plt.plot(x, [minGlobalDemand for i in range(0, len(x))])
@@ -467,12 +475,32 @@ retailPrice = retailPrice[len(T):len(retailPrice)]
 # plt.plot(x, [prodPriceMin for i in range(0, len(x))])
 # plt.plot(x[95*4:100*4], retailPrice[95*4:100*4], label='retailPrice')
 # plt.plot(x, batteries[0].toPlot)
-# plt.plot(x, avgActions)
-# plt.plot(x, avgActions)
+# plt.plot(x[:len(x)-12][len(avgActions)-12*5:], avgActions[len(avgActions)-12*5:])
 # plt.plot(x[95*4:100*4], gasProd[95*4:100*4], label='gas production')
+# plt.plot(x[0:12], [baseline for i in range(0, len(x))][len(x)-12*5:len(x)-12*4], label='nuclear')
+# plt.plot(x[0:12], solarProd[len(x)-12*5:len(x)-12*4], label='solar')
+# plt.plot(x[0:12], windProd[len(x)-12*5:len(x)-12*4], label='wind')
+# plt.plot(x[0:12], hydroProd[len(x)-12*5:len(x)-12*4], label='hydro')
+# plt.plot(x[0:12], gasProd[len(x)-12*5:len(x)-12*4], label='gas')
+# print(avgActions)
+
+f, (ax1, ax2, ax3) = plt.subplots(3, 1, sharey=False)
+
+ax1.plot(x[:len(x)-12][len(avgActions)-12*5:], prodPrice[len(avgActions)-12*5:])
+ax1.set_title('price of production')
+ax1.set_ylim(bottom = min(prodPrice[len(avgActions)-12*5:]), top=max(prodPrice[len(avgActions)-12*5:]))
+
+ax2.plot(x[:len(x)-12][len(avgActions)-12*5:], avgActions[len(avgActions)-12*5:])
+ax2.set_title('actions')
+ax2.set_ylim(bottom = min(avgActions[len(avgActions)-12*5:]), top=max(avgActions[len(avgActions)-12*5:]))
+
+ax3.plot(x[:len(x)-12][len(avgActions)-12*5:], retailPrice[len(avgActions)-12*5:])
+ax3.set_title('price of retail')
+ax3.set_ylim(bottom = min(retailPrice[len(avgActions)-12*5:]), top=max(retailPrice[len(avgActions)-12*5:]))
 
 # plt.legend()
-# plt.show()
+f.tight_layout(pad=3.0)
+plt.show()
 
 # we need recursive behavior to explore the Q tree, so I'm defining this as a function
 # we need to:
@@ -553,17 +581,17 @@ retailPrice = retailPrice[len(T):len(retailPrice)]
 # plt.plot(x, toPlot)
 # plt.show()
 
-import json
-obj = {}
+# import json
+# obj = {}
 
-obj['gasProd'] = gasProd
+# obj['gasProd'] = gasProd
 
-obj['agentRewards'] = avgActions
+# obj['agentRewards'] = avgActions
 
-obj['agentActions'] = avgReward
+# obj['agentActions'] = avgReward
 
-records = json.dumps(obj)
+# records = json.dumps(obj)
 
-f = open('withSocialCostOfCarbon'+str(numBatteries)+'Agents', 'w')
-f.write(records)
-f.close()
+# f = open('noSocialCostOfCarbonAndRealRetailPricing'+str(numBatteries)+'Agents', 'w')
+# f.write(records)
+# f.close()
